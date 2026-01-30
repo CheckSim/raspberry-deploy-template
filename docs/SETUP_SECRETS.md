@@ -1,14 +1,27 @@
 # Setup Secrets su GitHub
 
-Per configurare i secrets del progetto e abilitare il deploy automatico su Raspberry Pi.
+Per configurare i secrets del progetto e abilitare il deploy automatico su Raspberry Pi tramite Tailscale.
 
-## 🔐 Secrets obbligatori (Deploy SSH)
+## 🔐 Secrets obbligatori (Deploy SSH + Tailscale)
 
 Vai su **Settings** → **Secrets and variables** → **Actions** del tuo repository e aggiungi:
 
+### `TS_OAUTH_CLIENT_ID` e `TS_OAUTH_SECRET`
+- **Valore**: OAuth credentials di Tailscale
+- **Come ottenerle**:
+  1. Vai su [login.tailscale.com/admin/settings/oauth](https://login.tailscale.com/admin/settings/oauth)
+  2. Clicca **Generate OAuth Client**
+  3. Nella descrizione scrivi: `GitHub Actions Deploy`
+  4. In **Tags**, scrivi: `tag:ci`
+  5. Clicca **Generate client**
+  6. Copia **Client ID** (salva come `TS_OAUTH_CLIENT_ID`)
+  7. Copia **Client secret** (salva come `TS_OAUTH_SECRET`)
+  
+**IMPORTANTE**: Il Client secret viene mostrato solo una volta! Salvalo subito.
+
 ### `SSH_HOST`
-- **Valore**: Indirizzo IP del tuo Raspberry Pi (es. `192.168.1.100`)
-- **Nota**: Se non hai IP statico, usa un servizio DynDNS (DuckDNS, No-IP)
+- **Valore**: IP Tailscale del tuo Raspberry Pi (es. `100.x.x.x`)
+- **Come ottenerlo**: Sul Raspberry Pi esegui `tailscale ip -4`
 
 ### `SSH_USER`
 - **Valore**: Username sul Raspberry Pi (solitamente `pi`)
