@@ -71,7 +71,11 @@ PORT=8080
 
 Dopo aver configurato i secrets:
 
-1. **Fai un commit e push qualsiasi**
+1. **Verifica il tag ci negli ACLs di Tailscale**
+   - Vai su [login.tailscale.com/admin/acls/file](https://login.tailscale.com/admin/acls/file)
+   - Assicurati che `tag:ci` sia definito in `tagOwners` e abbia accesso SSH
+
+2. **Fai un commit e push qualsiasi**
    ```bash
    git add .
    git commit -m "Test deploy"
