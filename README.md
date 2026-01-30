@@ -2,7 +2,7 @@
 
 Template per deploy automatico su Raspberry Pi tramite GitHub Actions.
 
-![Deploy](https://github.com/CheckSim/raspberry-deploy-template/workflows/Deploy%20to%20Raspberry%20Pi/badge.svg)
+![Deploy](https://github.com/USERNAME/REPO_NAME/workflows/Deploy%20to%20Raspberry%20Pi/badge.svg)
 
 ## 📋 Cosa include questo template
 
@@ -22,7 +22,8 @@ Clicca su **"Use this template"** in alto per creare un nuovo repository dal tem
 
 Vai su **Settings** → **Secrets and variables** → **Actions** e configura:
 
-- `SSH_HOST` - IP del Raspberry Pi
+- `TAILSCALE_AUTH_KEY` - Auth key di Tailscale (da [admin console](https://login.tailscale.com/admin/settings/keys))
+- `SSH_HOST` - IP Tailscale del Pi (es. `100.x.x.x`, ottienilo con `tailscale ip -4` sul Pi)
 - `SSH_USER` - Username (es. `pi`)
 - `SSH_PRIVATE_KEY` - Chiave privata SSH
 - `ENV_FILE` - Contenuto del file `.env` (vedi `.env.example`)
