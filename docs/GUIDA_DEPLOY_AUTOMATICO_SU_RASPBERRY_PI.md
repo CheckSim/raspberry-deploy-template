@@ -114,13 +114,82 @@ Copia l'output (inizia con `ssh-ed25519`).
    - **Key**: incolla la chiave pubblica copiata prima
 6. Clicca **Add SSH key**
 
-### 1.7 Testa la connessione SSH con GitHub
+### 1.7 Configurazione Tailscale (per aggirare CG-NAT)
+
+Se il tuo ISP usa CG-NAT (Carrier-Grade NAT) o non riesci a configurare il port forwarding, usa Tailscale per creare una VPN privata.
+
+**Installa Tailscale sul Raspberry Pi:**
 
 ```bash
-ssh -T git@github.com
+# Installa Tailscale
+curl -fsSL https://tailscale.com/install.sh | sh
+
+# Avvia e autenticati
+sudo tailscale up
+
+# Ti darà un link da aprire nel browser per autenticarti
 ```
 
-Dovresti vedere: `Hi username! You've successfully authenticated...`
+Apri il link nel browser e fai login con un account Google, GitHub o Microsoft.
+
+**Ottieni l'IP Tailscale del Raspberry Pi:**
+
+```bash
+tailscale ip -4
+```
+
+Salva questo IP (es. `100.x.x.x`) - lo userai come `SSH_HOST` nei secrets GitHub.
+
+**Installa Tailscale sul tuo Mac:**
+
+1. Scarica da [tailscale.com/download](https://tailscale.com/download)
+2. Installa e fai login con lo **stesso account** usato sul Pi
+3. Ora puoi connetterti al Pi tramite l'IP Tailscale anche da fuori casa!
+
+**Test connessione:**
+
+```bash
+ssh pi@100.x.x.x  # Usa l'IP Tailscale del tuo Pi
+```
+
+### 1.8 Genera Tailscale OAuth Client per GitHub Actions
+
+Per permettere a GitHub Actions di connettersi in modo sicuro:
+
+1. Vai su [login.tailscale.com/admin/settings/oauth](https://login.tailscale.com/admin/settings/oauth)
+2. Clicca **Generate OAuth Client**
+3. Compila:
+   - **Description**: `GitHub Actions Deploy`
+   - **Tags**: `tag:ci`
+4. Clicca **Generate client**
+5. **IMPORTANTE**: Copia immediatamente:
+   - **Client ID** (lo userai come `TS_OAUTH_CLIENT_ID`)
+   - **Client secret** (lo userai come `TS_OAUTH_SECRET`)
+   
+⚠️ Il Client secret viene mostrato **solo una volta**! Salvalo subito o dovrai rigenerarlo.
+
+### 1.9 Configura il tag "ci" in Tailscale
+
+Per permettere ai runner GitHub di connettersi, devi creare il tag `ci`:
+
+1. Vai su [login.tailscale.com/admin/acls/file](https://login.tailscale.com/admin/acls/file)
+2. Trova la sezione `"tagOwners"` e aggiungi:
+   ```json
+   "tagOwners": {
+     "tag:ci": ["autogroup:admin"],
+   },
+   ```
+3. Nella sezione `"acls"`, assicurati che ci sia una regola che permette a `tag:ci` di accedere al Raspberry Pi:
+   ```json
+   "acls": [
+     {
+       "action": "accept",
+       "src": ["tag:ci"],
+       "dst": ["*:22"],
+     },
+   ],
+   ```
+4. Clicca **Save** in alto
 
 ---
 
@@ -147,11 +216,18 @@ Per ogni progetto che vuoi deployare:
 
 Crea i seguenti secrets:
 
+#### Secret: `TS_OAUTH_CLIENT_ID`
+- **Name**: `TS_OAUTH_CLIENT_ID`
+- **Value**: Il Client ID OAuth di Tailscale
+
+#### Secret: `TS_OAUTH_SECRET`
+- **Name**: `TS_OAUTH_SECRET`
+- **Value**: Il Client secret OAuth di Tailscale
+
 #### Secret: `SSH_HOST`
 - **Name**: `SSH_HOST`
-- **Value**: L'indirizzo IP del tuo Raspberry Pi (es. `192.168.1.100`)
-
-**Nota**: Se non hai un IP statico, considera di usare un servizio DynDNS come DuckDNS o No-IP.
+- **Value**: L'IP Tailscale del tuo Raspberry Pi (es. `100.64.1.2`)
+- **Come ottenerlo**: Sul Pi esegui `tailscale ip -4`
 
 #### Secret: `SSH_USER`
 - **Name**: `SSH_USER`
@@ -367,9 +443,21 @@ Usa una microSD **Classe 10 o A1** di buona qualità (SanDisk, Samsung). La velo
 
 ## 🔒 Sicurezza e Best Practices
 
-### IP Statico o DynDNS
+### Tailscale per connessioni sicure
 
-Se il tuo ISP cambia spesso l'IP pubblico:
+Tailscale crea una VPN privata tra i tuoi dispositivi:
+- ✅ Non esponi SSH pubblicamente su Internet
+- ✅ Funziona anche dietro CG-NAT
+- ✅ Connessione crittografata end-to-end
+- ✅ Non serve configurare port forwarding
+
+**Verifica dispositivi connessi:**
+1. Vai su [login.tailscale.com/admin/machines](https://login.tailscale.com/admin/machines)
+2. Vedrai tutti i dispositivi nella tua rete Tailscale
+
+### IP Statico o DynDNS (SOLO se NON usi Tailscale)
+
+Se non usi Tailscale e il tuo ISP cambia spesso l'IP pubblico:
 
 1. Configura DynDNS (es. DuckDNS):
 ```bash
@@ -385,7 +473,15 @@ crontab -e
 
 ### Firewall
 
-Configura il firewall per aprire solo le porte necessarie:
+**Se usi Tailscale**, il firewall può rimanere restrittivo perché non esponi SSH pubblicamente:
+
+```bash
+sudo apt install ufw -y
+sudo ufw allow from 100.64.0.0/10  # Permetti solo traffico Tailscale
+sudo ufw enable
+```
+
+**Se NON usi Tailscale** e hai configurato port forwarding, apri solo le porte necessarie:
 
 ```bash
 sudo apt install ufw -y
@@ -425,9 +521,18 @@ progetto2.tuodominio.duckdns.org {
 
 ### Il workflow fallisce alla connessione SSH
 
+**Con Tailscale:**
+- Verifica che Tailscale sia attivo sul Pi: `sudo tailscale status`
+- Verifica l'IP Tailscale: `tailscale ip -4`
+- Controlla che OAuth client sia configurato correttamente
+- Verifica che il tag `tag:ci` sia definito negli ACLs di Tailscale
+- Assicurati che `TS_OAUTH_CLIENT_ID` e `TS_OAUTH_SECRET` siano corretti
+
+**Senza Tailscale:**
 - Verifica che l'IP sia corretto
 - Controlla che SSH sia abilitato sul Pi
 - Verifica che la chiave privata sia completa nei secrets
+- Controlla il port forwarding del router
 
 ### Il progetto non si riavvia
 
@@ -457,10 +562,9 @@ sudo chown -R $USER:$USER ~/projects
 ## 📚 Risorse Utili
 
 - [Documentazione GitHub Actions](https://docs.github.com/en/actions)
+- [Tailscale Documentation](https://tailscale.com/kb/)
 - [Docker Compose](https://docs.docker.com/compose/)
 - [PM2 Documentation](https://pm2.keymetrics.io/docs/usage/quick-start/)
-- [DuckDNS](https://www.duckdns.org/)
-- [Caddy Server](https://caddyserver.com/docs/)
 
 ---
 
