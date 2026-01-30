@@ -22,7 +22,8 @@ Clicca su **"Use this template"** in alto per creare un nuovo repository dal tem
 
 Vai su **Settings** → **Secrets and variables** → **Actions** e configura:
 
-- `TAILSCALE_AUTH_KEY` - Auth key di Tailscale (da [admin console](https://login.tailscale.com/admin/settings/keys))
+- `TS_OAUTH_CLIENT_ID` - OAuth Client ID di Tailscale
+- `TS_OAUTH_SECRET` - OAuth Client Secret di Tailscale
 - `SSH_HOST` - IP Tailscale del Pi (es. `100.x.x.x`, ottienilo con `tailscale ip -4` sul Pi)
 - `SSH_USER` - Username (es. `pi`)
 - `SSH_PRIVATE_KEY` - Chiave privata SSH
