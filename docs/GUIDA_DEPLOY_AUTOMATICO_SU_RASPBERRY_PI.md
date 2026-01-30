@@ -61,7 +61,26 @@ sudo apt install -y nodejs
 sudo npm install -g pm2
 
 # Python e venv (CONSIGLIATO per Raspberry Pi 2)
-sudo apt install python3-pip python3-venv -y
+sudo apt-get install -y \
+  build-essential \
+  libssl-dev \
+  zlib1g-dev \
+  libncurses5-dev \
+  libncursesw5-dev \
+  libreadline-dev \
+  libsqlite3-dev \
+  libgdbm-dev \
+  libbz2-dev \
+  libffi-dev \
+  liblzma-dev \
+  wget
+
+wget https://www.python.org/ftp/python/3.11.8/Python-3.11.8.tgz
+tar xzf Python-3.11.8.tgz
+cd Python-3.11.8
+./configure --enable-optimizations
+make -j$(nproc)
+sudo make install
 
 # Docker e Docker Compose (SOLO per Raspberry Pi 4/5 con 2GB+ RAM)
 # ⚠️ SCONSIGLIATO per Raspberry Pi 2 (troppo pesante)
@@ -103,7 +122,18 @@ cat ~/.ssh/id_ed25519.pub
 
 Copia l'output (inizia con `ssh-ed25519`).
 
-### 1.6 Aggiungi la chiave pubblica a GitHub
+```bash
+chmod 700 ~/.ssh
+nano ~/.ssh/authorized_keys
+```
+
+Incolla la chiave pubblica
+
+```bash
+chmod 600 ~/.ssh/authorized_keys
+```
+
+### 1.6a Aggiungi la chiave pubblica a GitHub
 
 1. Vai su GitHub.com
 2. Clicca sulla tua foto profilo → **Settings**
@@ -113,6 +143,14 @@ Copia l'output (inizia con `ssh-ed25519`).
    - **Title**: `Raspberry Pi Deploy`
    - **Key**: incolla la chiave pubblica copiata prima
 6. Clicca **Add SSH key**
+
+### 1.6b Ottieni GitHub Personal Access Token (PAT)
+
+1. Vai su GitHub.com
+2. Clicca sulla tua foto profilo → **Settings**
+3. Nel menu a sinistra: **Developer settings → Personal access tokens → Fine-grained**
+4. Dai i permessi di lettura di tutte le repository, anche private
+5. Copia il token (NON lo rivedrai più) e salvalo come GH_TOKEN_DEPLOY
 
 ### 1.7 Configurazione Tailscale (per aggirare CG-NAT)
 
@@ -156,11 +194,10 @@ ssh pi@100.x.x.x  # Usa l'IP Tailscale del tuo Pi
 
 Per permettere a GitHub Actions di connettersi in modo sicuro:
 
-1. Vai su [login.tailscale.com/admin/settings/oauth](https://login.tailscale.com/admin/settings/oauth)
-2. Clicca **Generate OAuth Client**
+1. Vai su [https://login.tailscale.com/admin/settings/trust-credentials](https://login.tailscale.com/admin/settings/trust-credentials)
+2. Clicca **+ Credential → OAuth**
 3. Compila:
    - **Description**: `GitHub Actions Deploy`
-   - **Tags**: `tag:ci`
 4. Clicca **Generate client**
 5. **IMPORTANTE**: Copia immediatamente:
    - **Client ID** (lo userai come `TS_OAUTH_CLIENT_ID`)
@@ -236,6 +273,10 @@ Crea i seguenti secrets:
 #### Secret: `SSH_PRIVATE_KEY`
 - **Name**: `SSH_PRIVATE_KEY`
 - **Value**: Incolla la chiave privata copiata prima (inclusi BEGIN e END)
+
+#### Secret: `GH_TOKEN_DEPLOY`
+- **Name**: `GH_TOKEN_DEPLOY`
+- **Value**: Il token generato in GitHub
 
 #### Secret: `SSH_PORT` (opzionale)
 - **Name**: `SSH_PORT`
