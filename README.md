@@ -2,7 +2,7 @@
 
 Template per deploy automatico su Raspberry Pi tramite GitHub Actions.
 
-![Deploy](https://github.com/USERNAME/REPO_NAME/workflows/Deploy%20to%20Raspberry%20Pi/badge.svg)
+![Deploy](https://github.com/CheckSim/raspberry-deploy-template/workflows/Deploy%20to%20Raspberry%20Pi/badge.svg)
 
 ## 📋 Cosa include questo template
 
