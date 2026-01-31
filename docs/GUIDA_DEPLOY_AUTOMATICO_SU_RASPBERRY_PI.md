@@ -5,7 +5,7 @@ Questa guida ti aiuterà a configurare un sistema di deploy automatico che fa il
 ## 📋 Prerequisiti
 
 - Un Raspberry Pi con Raspberry Pi OS installato
-- Accesso SSH al Raspberry Pi
+- Accesso SSH al Raspberry Pi (o monitor e tastiera per la configurazione iniziale)
 - Un account GitHub
 - Connessione internet sul Raspberry Pi
 
@@ -13,10 +13,10 @@ Questa guida ti aiuterà a configurare un sistema di deploy automatico che fa il
 
 Se hai un **Raspberry Pi 2 v1.1** (1GB RAM, 32-bit):
 - Usa **Raspberry Pi OS Lite (32-bit, Legacy)**
-- Evita Docker quando possibile (molto pesante su 1GB RAM)
+- Evita Docker (molto pesante su 1GB RAM)
 - **Preferisci PM2 per Node.js e systemd per Python**
 - Limita a 1-2 progetti contemporaneamente
-- Aggiungi swap (vedi sezione "Ottimizzazioni per Raspberry Pi 2")
+- Aggiungi swap (lo script di setup lo fa automaticamente)
 
 Se hai un **Raspberry Pi 4/5**:
 - Usa **Raspberry Pi OS Lite (64-bit)**
@@ -25,7 +25,42 @@ Se hai un **Raspberry Pi 4/5**:
 
 ---
 
-## 🔧 Parte 1: Configurazione del Raspberry Pi
+## 🚀 Setup Rapido con Script Automatico
+
+### Metodo 1: Setup Automatico (CONSIGLIATO)
+
+Sul Raspberry Pi appena configurato, esegui:
+
+```bash
+# Scarica lo script di setup
+curl -fsSL https://raw.githubusercontent.com/TUO_USERNAME/raspberry-deploy-template/main/setup-raspberry.sh -o setup-raspberry.sh
+
+# Oppure crea manualmente il file e copia il contenuto dello script
+
+# Rendi eseguibile
+chmod +x setup-raspberry.sh
+
+# Esegui lo script
+./setup-raspberry.sh
+```
+
+Lo script installerà automaticamente:
+- ✅ Python 3.12
+- ✅ Node.js e PM2
+- ✅ Tailscale
+- ✅ Chiavi SSH per GitHub
+- ✅ Configurazione sudo senza password
+- ✅ Directory ~/projects
+- ✅ (Opzionale) Docker
+- ✅ (Opzionale) Ottimizzazioni per Pi 2
+
+**Segui le istruzioni interattive dello script** e salva le informazioni che ti fornisce!
+
+---
+
+## 🛠️ Setup Manuale (se preferisci il controllo completo)
+
+Se preferisci configurare manualmente ogni componente, segui questi passaggi:
 
 ### 1.1 Connessione SSH
 
@@ -49,114 +84,54 @@ sudo apt update
 sudo apt upgrade -y
 ```
 
-### 1.3 Installazione delle dipendenze base
+### 1.3 Installazione Python 3.12
 
 ```bash
-# Git (probabilmente già installato)
-sudo apt install git -y
+# Installazione dipendenze
+sudo apt install -y build-essential libssl-dev libffi-dev zlib1g-dev \
+    libbz2-dev libreadline-dev libsqlite3-dev llvm libncurses5-dev \
+    libncursesw5-dev xz-utils tk-dev liblzma-dev
 
-# Node.js e PM2 (CONSIGLIATO per Raspberry Pi 2)
+# Download e compilazione Python 3.12
+cd /tmp
+wget https://www.python.org/ftp/python/3.12.7/Python-3.12.7.tgz
+tar -xzf Python-3.12.7.tgz
+cd Python-3.12.7
+./configure --enable-optimizations
+make -j4
+sudo make altinstall
+
+# Installazione pip
+curl -sS https://bootstrap.pypa.io/get-pip.py | sudo python3.12
+
+# Verifica
+python3.12 --version
+```
+
+⚠️ **Nota**: La compilazione può richiedere 20-30 minuti su Raspberry Pi 2.
+
+### 1.4 Installazione Node.js e PM2
+
+```bash
+# Node.js LTS
 curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
 sudo apt install -y nodejs
+
+# PM2
 sudo npm install -g pm2
+pm2 startup systemd -u $USER --hp $HOME
+```
 
-# Python e venv (CONSIGLIATO per Raspberry Pi 2)
-sudo apt-get install -y \
-  build-essential \
-  libssl-dev \
-  zlib1g-dev \
-  libncurses5-dev \
-  libncursesw5-dev \
-  libreadline-dev \
-  libsqlite3-dev \
-  libgdbm-dev \
-  libbz2-dev \
-  libffi-dev \
-  liblzma-dev \
-  wget
+### 1.5 Installazione Docker (SOLO Pi 4/5, SCONSIGLIATO per Pi 2)
 
-wget https://www.python.org/ftp/python/3.11.8/Python-3.11.8.tgz
-tar xzf Python-3.11.8.tgz
-cd Python-3.11.8
-./configure --enable-optimizations
-make -j$(nproc)
-sudo make install
-
-# Docker e Docker Compose (SOLO per Raspberry Pi 4/5 con 2GB+ RAM)
-# ⚠️ SCONSIGLIATO per Raspberry Pi 2 (troppo pesante)
-# Se hai un Pi 2, salta questa sezione
+```bash
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 sudo usermod -aG docker $USER
+# Riavvia per applicare i permessi
 ```
 
-**IMPORTANTE:** Dopo aver installato Docker (solo Pi 4/5), fai logout e login per applicare i permessi:
-
-```bash
-exit
-# Riconnettiti via SSH
-```
-
-### 1.4 Creazione della directory per i progetti
-
-```bash
-mkdir -p ~/projects
-cd ~/projects
-```
-
-### 1.5 Configurazione chiavi SSH per GitHub
-
-Genera una coppia di chiavi SSH sul Raspberry Pi:
-
-```bash
-ssh-keygen -t ed25519 -C "github-deploy"
-# Premi Enter per accettare il path predefinito (~/.ssh/id_ed25519)
-# Premi Enter due volte per non impostare una passphrase
-```
-
-Visualizza la chiave pubblica:
-
-```bash
-cat ~/.ssh/id_ed25519.pub
-```
-
-Copia l'output (inizia con `ssh-ed25519`).
-
-```bash
-chmod 700 ~/.ssh
-nano ~/.ssh/authorized_keys
-```
-
-Incolla la chiave pubblica
-
-```bash
-chmod 600 ~/.ssh/authorized_keys
-```
-
-### 1.6a Aggiungi la chiave pubblica a GitHub
-
-1. Vai su GitHub.com
-2. Clicca sulla tua foto profilo → **Settings**
-3. Nel menu a sinistra: **SSH and GPG keys**
-4. Clicca **New SSH key**
-5. Inserisci:
-   - **Title**: `Raspberry Pi Deploy`
-   - **Key**: incolla la chiave pubblica copiata prima
-6. Clicca **Add SSH key**
-
-### 1.6b Ottieni GitHub Personal Access Token (PAT)
-
-1. Vai su GitHub.com
-2. Clicca sulla tua foto profilo → **Settings**
-3. Nel menu a sinistra: **Developer settings → Personal access tokens → Fine-grained**
-4. Dai i permessi di lettura di tutte le repository, anche private
-5. Copia il token (NON lo rivedrai più) e salvalo come GH_TOKEN_DEPLOY
-
-### 1.7 Configurazione Tailscale (per aggirare CG-NAT)
-
-Se il tuo ISP usa CG-NAT (Carrier-Grade NAT) o non riesci a configurare il port forwarding, usa Tailscale per creare una VPN privata.
-
-**Installa Tailscale sul Raspberry Pi:**
+### 1.6 Installazione e Configurazione Tailscale
 
 ```bash
 # Installa Tailscale
@@ -165,58 +140,81 @@ curl -fsSL https://tailscale.com/install.sh | sh
 # Avvia e autenticati
 sudo tailscale up
 
-# Ti darà un link da aprire nel browser per autenticarti
-```
-
-Apri il link nel browser e fai login con un account Google, GitHub o Microsoft.
-
-**Ottieni l'IP Tailscale del Raspberry Pi:**
-
-```bash
+# Ottieni l'IP Tailscale
 tailscale ip -4
 ```
 
-Salva questo IP (es. `100.x.x.x`) - lo userai come `SSH_HOST` nei secrets GitHub.
+Apri il link nel browser e fai login. Salva l'IP Tailscale (es. `100.x.x.x`) - lo userai come `SSH_HOST`.
 
-**Installa Tailscale sul tuo Mac:**
-
-1. Scarica da [tailscale.com/download](https://tailscale.com/download)
-2. Installa e fai login con lo **stesso account** usato sul Pi
-3. Ora puoi connetterti al Pi tramite l'IP Tailscale anche da fuori casa!
-
-**Test connessione:**
+### 1.7 Configurazione SSH
 
 ```bash
-ssh pi@100.x.x.x  # Usa l'IP Tailscale del tuo Pi
+# Crea directory .ssh
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+
+# Genera chiave SSH per GitHub
+ssh-keygen -t ed25519 -C "github-deploy" -f ~/.ssh/id_ed25519 -N ""
+
+# Mostra chiave pubblica (da aggiungere a GitHub → Settings → SSH keys)
+cat ~/.ssh/id_ed25519.pub
+
+# Mostra chiave privata (da usare come secret SSH_PRIVATE_KEY)
+cat ~/.ssh/id_ed25519
 ```
 
-### 1.8 Genera Tailscale OAuth Client per GitHub Actions
+**Aggiungi la chiave pubblica a GitHub:**
+1. Vai su GitHub.com → Settings → SSH and GPG keys
+2. New SSH key
+3. Incolla la chiave pubblica
 
-Per permettere a GitHub Actions di connettersi in modo sicuro:
+### 1.8 Configurazione sudo senza password
 
-1. Vai su [https://login.tailscale.com/admin/settings/trust-credentials](https://login.tailscale.com/admin/settings/trust-credentials)
-2. Clicca **+ Credential → OAuth**
+```bash
+echo "$USER ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/99-deploy-nopasswd
+sudo chmod 440 /etc/sudoers.d/99-deploy-nopasswd
+```
+
+### 1.9 Creazione directory progetti
+
+```bash
+mkdir -p ~/projects
+```
+
+### 1.10 (Opzionale) Ottimizzazioni per Raspberry Pi 2
+
+```bash
+# Aumento swap
+sudo dphys-swapfile swapoff
+sudo sed -i 's/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=1024/' /etc/dphys-swapfile
+sudo dphys-swapfile setup
+sudo dphys-swapfile swapon
+```
+
+---
+
+## 🔐 Configurazione Tailscale OAuth per GitHub Actions
+
+### 1. Crea OAuth Client
+
+1. Vai su [login.tailscale.com/admin/settings/oauth](https://login.tailscale.com/admin/settings/oauth)
+2. Clicca **"Generate OAuth Client"**
 3. Compila:
    - **Description**: `GitHub Actions Deploy`
-4. Clicca **Generate client**
-5. **IMPORTANTE**: Copia immediatamente:
-   - **Client ID** (lo userai come `TS_OAUTH_CLIENT_ID`)
-   - **Client secret** (lo userai come `TS_OAUTH_SECRET`)
-   
-⚠️ Il Client secret viene mostrato **solo una volta**! Salvalo subito o dovrai rigenerarlo.
+   - **Tags**: `tag:ci`
+4. Clicca **"Generate client"**
+5. Copia **Client ID** e **Client secret** (il secret si vede solo una volta!)
 
-### 1.9 Configura il tag "ci" in Tailscale
-
-Per permettere ai runner GitHub di connettersi, devi creare il tag `ci`:
+### 2. Configura ACL con tag "ci"
 
 1. Vai su [login.tailscale.com/admin/acls/file](https://login.tailscale.com/admin/acls/file)
-2. Trova la sezione `"tagOwners"` e aggiungi:
+2. Aggiungi in `"tagOwners"`:
    ```json
    "tagOwners": {
      "tag:ci": ["autogroup:admin"],
    },
    ```
-3. Nella sezione `"acls"`, assicurati che ci sia una regola che permette a `tag:ci` di accedere al Raspberry Pi:
+3. Aggiungi in `"acls"`:
    ```json
    "acls": [
      {
@@ -226,91 +224,68 @@ Per permettere ai runner GitHub di connettersi, devi creare il tag `ci`:
      },
    ],
    ```
-4. Clicca **Save** in alto
+4. Salva
 
 ---
 
-## 🔐 Parte 2: Configurazione dei Secrets su GitHub
-
-### 2.1 Preparazione della chiave privata
-
-Sul Raspberry Pi, visualizza la chiave privata:
-
-```bash
-cat ~/.ssh/id_ed25519
-```
-
-Copia **tutto** l'output (inizia con `-----BEGIN OPENSSH PRIVATE KEY-----` e finisce con `-----END OPENSSH PRIVATE KEY-----`).
-
-### 2.2 Creazione dei secrets sul repository GitHub
+## 🔑 Configurazione Secrets su GitHub
 
 Per ogni progetto che vuoi deployare:
 
-1. Vai sul repository GitHub del progetto
-2. Clicca su **Settings**
-3. Nel menu a sinistra: **Secrets and variables** → **Actions**
-4. Clicca **New repository secret**
+1. Vai sul repository GitHub → **Settings** → **Secrets and variables** → **Actions**
+2. Clicca **"New repository secret"**
+3. Aggiungi i seguenti secrets:
 
-Crea i seguenti secrets:
+### Secrets obbligatori:
 
-#### Secret: `TS_OAUTH_CLIENT_ID`
-- **Name**: `TS_OAUTH_CLIENT_ID`
-- **Value**: Il Client ID OAuth di Tailscale
+| Nome | Valore | Come ottenerlo |
+|------|--------|----------------|
+| `TS_OAUTH_CLIENT_ID` | Client ID OAuth di Tailscale | Da Tailscale admin console |
+| `TS_OAUTH_SECRET` | Client Secret OAuth di Tailscale | Da Tailscale admin console |
+| `SSH_HOST` | IP Tailscale del Pi (es. `100.x.x.x`) | `tailscale ip -4` sul Pi |
+| `SSH_USER` | Username (es. `pi`) | `whoami` sul Pi |
+| `SSH_PRIVATE_KEY` | Chiave privata SSH | `cat ~/.ssh/id_ed25519` sul Pi |
+| `GH_TOKEN_DEPLOY` | Personal Access Token GitHub | GitHub Settings → Developer settings → Personal access tokens |
+| `ENV_FILE` | Contenuto del file `.env` | Variabili d'ambiente del progetto |
 
-#### Secret: `TS_OAUTH_SECRET`
-- **Name**: `TS_OAUTH_SECRET`
-- **Value**: Il Client secret OAuth di Tailscale
+### Secrets opzionali:
 
-#### Secret: `SSH_HOST`
-- **Name**: `SSH_HOST`
-- **Value**: L'IP Tailscale del tuo Raspberry Pi (es. `100.64.1.2`)
-- **Come ottenerlo**: Sul Pi esegui `tailscale ip -4`
+| Nome | Valore | Quando serve |
+|------|--------|--------------|
+| `PYTHON_VERSION` | `3.12` | Per specificare versione Python (default: `python3`) |
 
-#### Secret: `SSH_USER`
-- **Name**: `SSH_USER`
-- **Value**: Il tuo username sul Pi (solitamente `pi`)
+### Come creare `GH_TOKEN_DEPLOY`:
 
-#### Secret: `SSH_PRIVATE_KEY`
-- **Name**: `SSH_PRIVATE_KEY`
-- **Value**: Incolla la chiave privata copiata prima (inclusi BEGIN e END)
+1. GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+2. Generate new token (classic)
+3. Seleziona scope: `repo` (Full control of private repositories)
+4. Copia il token generato
 
-#### Secret: `GH_TOKEN_DEPLOY`
-- **Name**: `GH_TOKEN_DEPLOY`
-- **Value**: Il token generato in GitHub
+### Esempio `ENV_FILE` per bot Telegram:
 
-#### Secret: `SSH_PORT` (opzionale)
-- **Name**: `SSH_PORT`
-- **Value**: `22` (o la porta SSH personalizzata se l'hai cambiata)
-
-#### Secret: `ENV_FILE` (se il progetto ha bisogno di variabili d'ambiente)
-- **Name**: `ENV_FILE`
-- **Value**: Il contenuto del tuo file `.env`
-
-**Esempio per un bot Telegram:**
 ```
 TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
-DATABASE_URL=postgresql://user:password@localhost:5432/mydb
+DATABASE_URL=postgresql://user:password@localhost:5432/botdb
 NODE_ENV=production
-PORT=3000
 ```
 
 ---
 
-## 📝 Parte 3: Aggiunta del Workflow al Progetto
+## 📝 Aggiunta del Workflow al Progetto
 
-### 3.1 Crea la cartella del workflow
+### 1. Crea la cartella del workflow
 
-Nel tuo progetto locale (sul tuo computer), crea la cartella:
+Nel tuo progetto locale:
 
 ```bash
 mkdir -p .github/workflows
 ```
 
-### 3.2 Crea il file del workflow
+### 2. Crea il file deploy.yml
 
-Crea il file `.github/workflows/deploy.yml` e incolla il template del workflow.
+Copia il contenuto del workflow `deploy.yml` in `.github/workflows/deploy.yml`
 
-### 3.3 Commit e push
+### 3. Commit e push
 
 ```bash
 git add .github/workflows/deploy.yml
@@ -320,41 +295,49 @@ git push origin main
 
 ---
 
-## 🚀 Parte 4: Test del Deploy
+## 🚀 Test del Deploy
 
-### 4.1 Verifica che il workflow sia partito
+### 1. Verifica che il workflow sia partito
 
-1. Vai sul tuo repository GitHub
-2. Clicca sulla tab **Actions**
-3. Dovresti vedere il workflow "Deploy to Raspberry Pi" in esecuzione
+1. Vai su GitHub → repository → tab **Actions**
+2. Dovresti vedere "Deploy to Raspberry Pi" in esecuzione
 
-### 4.2 Monitora l'esecuzione
+### 2. Monitora l'esecuzione
 
-Clicca sul workflow per vedere i log in tempo reale. Il processo:
+Clicca sul workflow per vedere i log in tempo reale:
+- ✅ Connessione a Tailscale
+- ✅ Clone/update del repository
+- ✅ Creazione file `.env`
+- ✅ Installazione dipendenze
+- ✅ Creazione servizio systemd (se non esiste)
+- ✅ Riavvio del servizio
+- ✅ Verifica stato del servizio
 
-1. ✅ Si connette al Raspberry Pi via SSH
-2. ✅ Clona il repository (al primo deploy)
-3. ✅ Fa il pull delle ultime modifiche
-4. ✅ Crea il file `.env` dai secrets
-5. ✅ Identifica il tipo di progetto (Docker/Node/Python)
-6. ✅ Installa le dipendenze
-7. ✅ Riavvia l'applicazione
-
-### 4.3 Verifica sul Raspberry Pi
-
-Connettiti al Pi e controlla che il progetto sia stato deployato:
+### 3. Verifica sul Raspberry Pi
 
 ```bash
-cd ~/projects/nome-del-tuo-repo
+# Connettiti al Pi
+ssh pi@100.x.x.x  # Usa il tuo IP Tailscale
+
+# Controlla il progetto
+cd ~/projects/nome-repository
 ls -la
-# Dovresti vedere tutti i file del progetto e il .env
+
+# Verifica il servizio (per progetti Python)
+sudo systemctl status nome-repository
+
+# Verifica PM2 (per progetti Node.js)
+pm2 list
+
+# Vedi i log
+sudo journalctl -u nome-repository -f
 ```
 
 ---
 
 ## 🔄 Uso Quotidiano
 
-Da ora in poi, ogni volta che fai un push su GitHub:
+Ogni volta che fai un push:
 
 ```bash
 git add .
@@ -362,123 +345,50 @@ git commit -m "Update feature"
 git push origin main
 ```
 
-Il deploy partirà automaticamente! Puoi monitorare il progresso nella tab **Actions** di GitHub.
+Il deploy partirà automaticamente! Monitora su GitHub Actions.
 
 ---
 
 ## 🛠️ Configurazioni Specifiche per Tipo di Progetto
 
-### Node.js con PM2 (CONSIGLIATO per Raspberry Pi 2)
+### Node.js con PM2
 
-Il workflow rileva `package.json` e:
-1. Installa le dipendenze con `npm install`
-2. Fa il build se presente lo script `build`
-3. Riavvia con PM2
+Il workflow rileva automaticamente `package.json`.
 
-**Primo setup manuale** (solo la prima volta):
-```bash
-cd ~/projects/tuo-progetto
-pm2 start npm --name "tuo-progetto" -- start
-pm2 save
-pm2 startup
-```
+**Nessuna configurazione aggiuntiva necessaria!** PM2 viene gestito automaticamente.
 
-### Python con systemd (CONSIGLIATO per Raspberry Pi 2)
+### Python con systemd
 
-Il workflow rileva `requirements.txt` e:
-1. Crea/attiva il virtual environment
-2. Installa le dipendenze
-3. Riavvia il servizio systemd
+Il workflow:
+1. Rileva `requirements.txt`
+2. Cerca file entry point: `main.py`, `bot.py`, `app.py`, `run.py`
+3. **Crea automaticamente il servizio systemd** se non esiste
+4. Riavvia il servizio
 
-**Primo setup manuale** (solo la prima volta):
+**Nessuna configurazione manuale necessaria!**
 
-Crea il file `/etc/systemd/user/tuo-progetto.service`:
-```ini
-[Unit]
-Description=Tuo Progetto Python
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/home/pi/projects/tuo-progetto
-ExecStart=/home/pi/projects/tuo-progetto/venv/bin/python main.py
-Restart=always
-
-[Install]
-WantedBy=default.target
-```
-
-Abilita e avvia:
-```bash
-systemctl --user enable tuo-progetto
-systemctl --user start tuo-progetto
-```
-
-### Docker Compose (SOLO per Raspberry Pi 4/5)
-
-**⚠️ ATTENZIONE: Non consigliato per Raspberry Pi 2 (1GB RAM)**
-
-Il workflow rileva automaticamente `docker-compose.yml` e fa:
-```bash
-docker-compose down
-docker-compose up -d --build
-```
-
-Assicurati che il tuo `docker-compose.yml` sia configurato correttamente.
-
-**Se hai un Raspberry Pi 2**, converti il progetto Docker per usare PM2 o systemd invece.
-
----
-
-## ⚡ Ottimizzazioni per Raspberry Pi 2
-
-Se usi un Raspberry Pi 2, queste ottimizzazioni sono **essenziali**:
-
-### 1. Aumenta lo swap
-
-Con solo 1GB di RAM, lo swap è fondamentale:
+Se vuoi personalizzare il servizio systemd dopo la creazione:
 
 ```bash
-sudo dphys-swapfile swapoff
-sudo nano /etc/dphys-swapfile
-# Cambia CONF_SWAPSIZE=100 in CONF_SWAPSIZE=1024
-sudo dphys-swapfile setup
-sudo dphys-swapfile swapon
+sudo nano /etc/systemd/system/nome-progetto.service
+sudo systemctl daemon-reload
+sudo systemctl restart nome-progetto
 ```
 
-### 2. Disabilita servizi non necessari
+### Docker Compose
 
-```bash
-# Disabilita Bluetooth se non serve
-sudo systemctl disable bluetooth
-sudo systemctl stop bluetooth
+Il workflow rileva automaticamente `docker-compose.yml`.
 
-# Disabilita WiFi se usi ethernet
-sudo systemctl disable wpa_supplicant
+Assicurati che il compose file sia configurato correttamente:
+
+```yaml
+version: '3.8'
+services:
+  app:
+    build: .
+    restart: always
+    env_file: .env
 ```
-
-### 3. Monitora le risorse
-
-Installa strumenti per monitorare:
-
-```bash
-sudo apt install htop iotop -y
-
-# Usa htop per vedere RAM e CPU
-htop
-
-# Controlla lo stato della memoria
-free -h
-```
-
-### 4. SD Card veloce
-
-Usa una microSD **Classe 10 o A1** di buona qualità (SanDisk, Samsung). La velocità della SD è critica con 1GB di RAM.
-
-### 5. Limita i progetti attivi
-
-**Raspberry Pi 2**: Max 1-2 progetti leggeri contemporaneamente
-**Raspberry Pi 4/5**: Puoi gestire 5-10+ progetti senza problemi
 
 ---
 
@@ -486,112 +396,74 @@ Usa una microSD **Classe 10 o A1** di buona qualità (SanDisk, Samsung). La velo
 
 ### Tailscale per connessioni sicure
 
-Tailscale crea una VPN privata tra i tuoi dispositivi:
-- ✅ Non esponi SSH pubblicamente su Internet
-- ✅ Funziona anche dietro CG-NAT
+- ✅ SSH non esposto pubblicamente
+- ✅ Funziona dietro CG-NAT
 - ✅ Connessione crittografata end-to-end
-- ✅ Non serve configurare port forwarding
+- ✅ Nessun port forwarding necessario
 
-**Verifica dispositivi connessi:**
-1. Vai su [login.tailscale.com/admin/machines](https://login.tailscale.com/admin/machines)
-2. Vedrai tutti i dispositivi nella tua rete Tailscale
+### Gestione delle chiavi
 
-### IP Statico o DynDNS (SOLO se NON usi Tailscale)
-
-Se non usi Tailscale e il tuo ISP cambia spesso l'IP pubblico:
-
-1. Configura DynDNS (es. DuckDNS):
-```bash
-mkdir ~/duckdns
-cd ~/duckdns
-echo "echo url='https://www.duckdns.org/update?domains=tuodominio&token=tuotoken&ip=' | curl -k -o ~/duckdns/duck.log -K -" > duck.sh
-chmod 700 duck.sh
-crontab -e
-# Aggiungi: */5 * * * * ~/duckdns/duck.sh >/dev/null 2>&1
-```
-
-2. Usa il dominio DuckDNS come `SSH_HOST`
+- ✅ Non committare mai chiavi private nel repository
+- ✅ Usa sempre i GitHub Secrets per dati sensibili
+- ✅ Rigenera le chiavi periodicamente
 
 ### Firewall
 
-**Se usi Tailscale**, il firewall può rimanere restrittivo perché non esponi SSH pubblicamente:
+Con Tailscale, puoi mantenere il firewall restrittivo:
 
 ```bash
 sudo apt install ufw -y
-sudo ufw allow from 100.64.0.0/10  # Permetti solo traffico Tailscale
+sudo ufw allow from 100.64.0.0/10  # Solo traffico Tailscale
 sudo ufw enable
-```
-
-**Se NON usi Tailscale** e hai configurato port forwarding, apri solo le porte necessarie:
-
-```bash
-sudo apt install ufw -y
-sudo ufw allow ssh
-sudo ufw allow 80/tcp   # HTTP
-sudo ufw allow 443/tcp  # HTTPS
-sudo ufw enable
-```
-
-### Reverse Proxy (Nginx/Caddy)
-
-Per gestire più progetti su porte diverse, usa un reverse proxy.
-
-**Esempio con Caddy** (gestisce automaticamente HTTPS):
-```bash
-sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
-sudo apt update
-sudo apt install caddy
-```
-
-Configura `/etc/caddy/Caddyfile`:
-```
-progetto1.tuodominio.duckdns.org {
-    reverse_proxy localhost:3000
-}
-
-progetto2.tuodominio.duckdns.org {
-    reverse_proxy localhost:3001
-}
 ```
 
 ---
 
 ## 🐛 Troubleshooting
 
+### Il workflow fallisce alla connessione Tailscale
+
+- Verifica `TS_OAUTH_CLIENT_ID` e `TS_OAUTH_SECRET`
+- Controlla che il tag `ci` sia configurato negli ACLs
+- Verifica che Tailscale sia attivo sul Pi: `sudo tailscale status`
+
 ### Il workflow fallisce alla connessione SSH
 
-**Con Tailscale:**
-- Verifica che Tailscale sia attivo sul Pi: `sudo tailscale status`
-- Verifica l'IP Tailscale: `tailscale ip -4`
-- Controlla che OAuth client sia configurato correttamente
-- Verifica che il tag `tag:ci` sia definito negli ACLs di Tailscale
-- Assicurati che `TS_OAUTH_CLIENT_ID` e `TS_OAUTH_SECRET` siano corretti
+- Verifica `SSH_HOST` (deve essere l'IP Tailscale: `100.x.x.x`)
+- Controlla che `SSH_PRIVATE_KEY` sia completo (con BEGIN e END)
+- Verifica che la chiave pubblica sia su GitHub SSH keys
 
-**Senza Tailscale:**
-- Verifica che l'IP sia corretto
-- Controlla che SSH sia abilitato sul Pi
-- Verifica che la chiave privata sia completa nei secrets
-- Controlla il port forwarding del router
+### Il file .env non viene creato
 
-### Il progetto non si riavvia
+- Verifica che `ENV_FILE` sia configurato nei secrets
+- Controlla nei log del workflow se ci sono errori
 
-- Controlla i log del workflow su GitHub Actions
-- Connettiti al Pi e verifica manualmente:
-  ```bash
-  cd ~/projects/tuo-progetto
-  docker-compose logs    # per Docker
-  pm2 logs               # per PM2
-  journalctl --user -u tuo-progetto  # per systemd
-  ```
+### Il servizio non parte
 
-### File .env non viene creato
+```bash
+# Vedi i log del servizio
+sudo journalctl -u nome-progetto -n 50
 
-- Verifica che il secret `ENV_FILE` sia impostato su GitHub
-- Controlla nei log del workflow il messaggio "Creating .env file"
+# Verifica lo stato
+sudo systemctl status nome-progetto
 
-### Permessi negati
+# Riavvia manualmente
+sudo systemctl restart nome-progetto
+```
+
+### Python: ModuleNotFoundError
+
+Il virtual environment potrebbe non essere attivato correttamente nel servizio.
+
+Verifica che in `/etc/systemd/system/nome-progetto.service`:
+
+```ini
+ExecStart=/home/pi/projects/nome-progetto/venv/bin/python main.py
+```
+
+Usi il path **completo** al Python del venv.
+
+### Problemi di permessi
 
 ```bash
 # Sul Raspberry Pi
@@ -604,13 +476,21 @@ sudo chown -R $USER:$USER ~/projects
 
 - [Documentazione GitHub Actions](https://docs.github.com/en/actions)
 - [Tailscale Documentation](https://tailscale.com/kb/)
-- [Docker Compose](https://docs.docker.com/compose/)
 - [PM2 Documentation](https://pm2.keymetrics.io/docs/usage/quick-start/)
+- [Systemd Service Files](https://www.freedesktop.org/software/systemd/man/systemd.service.html)
 
 ---
 
 ## 🎉 Conclusione
 
-Ora hai un sistema completo di CI/CD casalingo! Ogni push su GitHub viene automaticamente deployato sul tuo Raspberry Pi.
+Ora hai un sistema completo di CI/CD casalingo! 
+
+**Caratteristiche:**
+- ✅ Deploy automatico ad ogni push
+- ✅ Creazione automatica servizi systemd
+- ✅ Gestione automatica dipendenze
+- ✅ Verifica post-deploy
+- ✅ Sicurezza con Tailscale
+- ✅ Supporto multi-progetto
 
 Buon coding! 🚀
