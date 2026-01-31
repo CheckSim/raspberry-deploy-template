@@ -6,16 +6,13 @@ on:
   workflow_dispatch:
 
 env:
-  # Nome del progetto (usato per la directory sul Pi)
   PROJECT_NAME: ${{ github.event.repository.name }}
-  
-  # Path base dove sono i progetti sul Pi (modificabile)
-  BASE_PATH: ~/projects
+  BASE_PATH: /home/pi/projects
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Connect to Tailscale
       uses: tailscale/github-action@v2
@@ -23,110 +20,206 @@ jobs:
         oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
         oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
         tags: tag:ci
-    
+
     - name: Deploy to Raspberry Pi
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        port: ${{ secrets.SSH_PORT || 22 }}
-        envs: PROJECT_NAME,BASE_PATH,ENV_FILE
+        port: 22
+        timeout: 60m
+        command_timeout: 60m
+        envs: >
+          PROJECT_NAME,
+          BASE_PATH,
+          ENV_FILE,
+          GH_TOKEN_DEPLOY,
+          PYTHON_VERSION
         script: |
           set -e
-          
-          PROJECT_DIR="$BASE_PATH/$PROJECT_NAME"
-          
+
           echo "🚀 Starting deployment for $PROJECT_NAME"
-          
-          # Crea la directory se non esiste e clona il repo
-          if [ ! -d "$PROJECT_DIR" ]; then
-            echo "📁 Directory not found, cloning repository..."
+          echo "👤 User: $(whoami)"
+          echo "📁 Base path: $BASE_PATH"
+
+          PROJECT_DIR="$BASE_PATH/$PROJECT_NAME"
+          REPO_URL="https://${{ secrets.GH_TOKEN_DEPLOY }}@github.com/${{ github.repository }}.git"
+
+          # --------------------------------------------------
+          # Clone or update repository
+          # --------------------------------------------------
+          if [ ! -d "$PROJECT_DIR/.git" ]; then
+            echo "📁 Cloning repository..."
             mkdir -p "$BASE_PATH"
-            cd "$BASE_PATH"
-            git clone git@github.com:${{ github.repository }}.git
+            git clone "$REPO_URL" "$PROJECT_DIR"
           fi
-          
+
           cd "$PROJECT_DIR"
-          
-          # Pull delle ultime modifiche
-          echo "⬇️  Pulling latest changes..."
+          git remote set-url origin "$REPO_URL"
+
+          echo "⬇️  Fetching latest changes..."
           git fetch origin
           git reset --hard origin/${{ github.ref_name }}
-          
-          # Crea il file .env dai secrets di GitHub
-          if [ ! -z "$ENV_FILE" ]; then
-            echo "🔐 Creating .env file from secrets..."
-            echo "$ENV_FILE" > .env
+
+          # --------------------------------------------------
+          # ENV file
+          # --------------------------------------------------
+          if [ -n "$ENV_FILE" ]; then
+            echo "🔐 Writing .env file..."
+            printf '%s\n' "$ENV_FILE" > .env
             chmod 600 .env
-            echo "✅ .env file created"
+            echo "✅ .env file created with $(wc -l < .env) lines"
           else
-            echo "ℹ️  No ENV_FILE secret found, skipping .env creation"
+            echo "ℹ️  No ENV_FILE provided"
           fi
-          
-          # Gestione Node.js (se presente package.json)
+
+          # --------------------------------------------------
+          # Node.js project
+          # --------------------------------------------------
           if [ -f "package.json" ]; then
             echo "📦 Node.js project detected"
-            
-            # Installa dipendenze se package.json è cambiato
+
+            if ! command -v npm >/dev/null 2>&1; then
+              echo "📦 Installing Node.js..."
+              curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            fi
+
             npm install
-            
-            # Build se presente script build
-            if grep -q '"build"' package.json; then
+
+            if npm run | grep -q "build"; then
               echo "🔨 Running build..."
               npm run build
             fi
-            
-            # Riavvia con PM2 (se installato)
-            if command -v pm2 &> /dev/null; then
-              echo "🔄 Restarting with PM2..."
+
+            if command -v pm2 >/dev/null 2>&1; then
               pm2 restart "$PROJECT_NAME" || pm2 start npm --name "$PROJECT_NAME" -- start
+              echo "✅ PM2 service restarted"
             else
-              echo "⚠️  PM2 not found, skipping process restart"
+              echo "⚠️  PM2 not installed"
             fi
-          
-          # Gestione Python (se presente requirements.txt)
+
+          # --------------------------------------------------
+          # Python project
+          # --------------------------------------------------
           elif [ -f "requirements.txt" ]; then
             echo "🐍 Python project detected"
-            
-            # Crea venv se non esiste
-            if [ ! -d "venv" ]; then
-              python3 -m venv venv
-            fi
-            
-            source venv/bin/activate
-            pip install -r requirements.txt
-            
-            # Riavvia con systemd (se configurato)
-            if systemctl --user list-units --all | grep -q "$PROJECT_NAME"; then
-              echo "🔄 Restarting systemd service..."
-              systemctl --user restart "$PROJECT_NAME"
+
+            # Determina la versione di Python da usare
+            if [ -n "$PYTHON_VERSION" ]; then
+              PYTHON_BIN="python${PYTHON_VERSION}"
             else
-              echo "⚠️  Systemd service not found, skipping restart"
+              PYTHON_BIN="python3"
             fi
-          
-          # Gestione Docker (se presente docker-compose.yml e risorse sufficienti)
+
+            if ! command -v $PYTHON_BIN >/dev/null 2>&1; then
+              echo "❌ $PYTHON_BIN not found, please install it manually on Raspberry"
+              exit 1
+            fi
+
+            echo "🐍 Using $PYTHON_BIN ($(command -v $PYTHON_BIN))"
+
+            # Crea virtual environment se non esiste
+            if [ ! -d "venv" ]; then
+              echo "📦 Creating virtual environment..."
+              $PYTHON_BIN -m venv venv
+            fi
+
+            # Attiva venv e installa dipendenze
+            source venv/bin/activate
+
+            export PIP_PREFER_BINARY=1
+
+            echo "📦 Installing dependencies..."
+            pip install --upgrade pip setuptools wheel
+            pip install -r requirements.txt
+
+            # Trova il file principale Python
+            MAIN_FILE=""
+            if [ -f "main.py" ]; then
+              MAIN_FILE="main.py"
+            elif [ -f "bot.py" ]; then
+              MAIN_FILE="bot.py"
+            elif [ -f "app.py" ]; then
+              MAIN_FILE="app.py"
+            elif [ -f "run.py" ]; then
+              MAIN_FILE="run.py"
+            else
+              echo "⚠️  No standard Python entry point found (main.py, bot.py, app.py, run.py)"
+              MAIN_FILE="main.py"  # Default
+            fi
+
+            echo "🎯 Entry point: $MAIN_FILE"
+
+            # Crea o aggiorna il servizio systemd
+            SERVICE_FILE="/etc/systemd/system/${PROJECT_NAME}.service"
+            
+            if [ ! -f "$SERVICE_FILE" ]; then
+              echo "📝 Creating systemd service..."
+              
+              sudo tee "$SERVICE_FILE" > /dev/null <<EOF
+          [Unit]
+          Description=$PROJECT_NAME
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=$(whoami)
+          WorkingDirectory=$PROJECT_DIR
+          ExecStart=$PROJECT_DIR/venv/bin/python $MAIN_FILE
+          Restart=always
+          RestartSec=10
+          Environment="PATH=$PROJECT_DIR/venv/bin:/usr/local/bin:/usr/bin:/bin"
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+
+              sudo systemctl daemon-reload
+              sudo systemctl enable "$PROJECT_NAME"
+              echo "✅ Systemd service created and enabled"
+            else
+              echo "ℹ️  Systemd service already exists"
+            fi
+
+            # Riavvia il servizio
+            echo "🔄 Restarting systemd service..."
+            sudo systemctl restart "$PROJECT_NAME"
+            
+            # Aspetta un attimo per verificare lo stato
+            sleep 2
+            
+            if sudo systemctl is-active --quiet "$PROJECT_NAME"; then
+              echo "✅ Service is running"
+              sudo systemctl status "$PROJECT_NAME" --no-pager -l
+            else
+              echo "❌ Service failed to start. Last logs:"
+              sudo journalctl -u "$PROJECT_NAME" -n 20 --no-pager
+              exit 1
+            fi
+
+          # --------------------------------------------------
+          # Docker Compose
+          # --------------------------------------------------
           elif [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ]; then
-            echo "🐳 Docker Compose found"
-            echo "⚠️  Warning: Docker può essere pesante su Raspberry Pi 2 (1GB RAM)"
-            echo "🔄 Rebuilding containers..."
-            docker-compose down
-            docker-compose up -d --build
+            echo "🐳 Docker Compose detected"
+            docker compose down
+            docker compose up -d --build
             echo "✅ Docker containers started"
-          
+
           else
-            echo "ℹ️  No recognized project type (Docker/Node/Python)"
-            echo "✅ Files updated, manual restart may be needed"
+            echo "ℹ️  No known project type detected"
           fi
-          
-          echo "✨ Deployment completed successfully!"
+
+          echo "✨ Deployment completed successfully"
       env:
         ENV_FILE: ${{ secrets.ENV_FILE }}
-    
-    - name: Notify deployment status
+
+    - name: Deployment result
       if: always()
       run: |
-        if [ ${{ job.status }} == 'success' ]; then
+        if [ "${{ job.status }}" = "success" ]; then
           echo "✅ Deployment successful"
         else
           echo "❌ Deployment failed"
