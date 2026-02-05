@@ -108,10 +108,23 @@ fi
 echo "📦 Step 4/8: Installazione Node.js e PM2..."
 
 if ! command -v node &> /dev/null; then
-    echo "   Installazione Node.js LTS..."
-    curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
-    sudo apt install -y nodejs
-    echo "   ✅ Node.js installato: $(node --version)"
+    echo "   Rilevamento architettura..."
+    ARCH=$(dpkg --print-architecture)
+    echo "   Architettura rilevata: $ARCH"
+    
+    if [ "$ARCH" = "armhf" ]; then
+        # Raspberry Pi 2/Zero (32-bit) - Usa versione dai repository Debian
+        echo "   ⚠️  Architettura armhf: installazione Node.js dai repository Debian..."
+        sudo apt install -y nodejs npm
+        echo "   ✅ Node.js installato: $(node --version)"
+        echo "   ℹ️  Nota: versione dai repository Debian (potrebbe non essere l'ultima LTS)"
+    else
+        # Raspberry Pi 3/4/5 (64-bit) - Usa NodeSource
+        echo "   Installazione Node.js LTS da NodeSource..."
+        curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+        sudo apt install -y nodejs
+        echo "   ✅ Node.js installato: $(node --version)"
+    fi
 else
     echo "   ✅ Node.js già installato: $(node --version)"
 fi
