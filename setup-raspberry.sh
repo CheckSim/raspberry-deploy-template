@@ -132,8 +132,17 @@ fi
 if ! command -v pm2 &> /dev/null; then
     echo "   Installazione PM2..."
     sudo npm install -g pm2
-    pm2 startup systemd -u $USER --hp $HOME
-    echo "   ✅ PM2 installato"
+    
+    # Configura PM2 per auto-start
+    echo "   Configurazione PM2 auto-start..."
+    PM2_STARTUP_CMD=$(pm2 startup systemd -u $USER --hp $HOME | grep "sudo env" | tail -n1)
+    
+    if [ -n "$PM2_STARTUP_CMD" ]; then
+        eval "$PM2_STARTUP_CMD"
+        echo "   ✅ PM2 installato e configurato per auto-start"
+    else
+        echo "   ✅ PM2 installato (auto-start da configurare manualmente)"
+    fi
 else
     echo "   ✅ PM2 già installato"
 fi
