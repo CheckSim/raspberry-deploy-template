@@ -65,7 +65,7 @@ if ! command -v python3.12 &> /dev/null; then
     make -j4
     sudo make altinstall
     cd ~
-    rm -rf /tmp/Python-3.12.7*
+    sudo rm -rf /tmp/Python-3.12.7*
     echo "   ✅ Python 3.12 installato"
 else
     echo "   ✅ Python 3.12 già installato"
@@ -77,6 +77,30 @@ python3.12 --version
 # Installa pip per Python 3.12
 echo "   Installazione pip per Python 3.12..."
 curl -sS https://bootstrap.pypa.io/get-pip.py | sudo python3.12
+
+# Rendi Python 3.12 la versione predefinita (opzionale)
+echo ""
+read -p "🐍 Vuoi rendere Python 3.12 la versione predefinita del sistema? [Y/n]: " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+    echo "   Configurazione Python 3.12 come versione predefinita..."
+    sudo update-alternatives --install /usr/bin/python python /usr/local/bin/python3.12 1
+    sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.12 1
+    sudo update-alternatives --install /usr/bin/pip pip /usr/local/bin/pip3.12 1
+    sudo update-alternatives --install /usr/bin/pip3 pip3 /usr/local/bin/pip3.12 1
+    
+    # Imposta come default
+    sudo update-alternatives --set python /usr/local/bin/python3.12
+    sudo update-alternatives --set python3 /usr/local/bin/python3.12
+    sudo update-alternatives --set pip /usr/local/bin/pip3.12
+    sudo update-alternatives --set pip3 /usr/local/bin/pip3.12
+    
+    echo "   ✅ Python 3.12 configurato come versione predefinita"
+    echo "   Verifica: $(python --version)"
+else
+    echo "   ⏭️  Python 3.12 installato ma non impostato come predefinito"
+    echo "   Potrai usarlo con: python3.12"
+fi
 
 # --------------------------------------------------
 # 4. Installazione Node.js e PM2
