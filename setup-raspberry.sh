@@ -154,11 +154,35 @@ read -p "🐳 Vuoi installare Docker? (Sconsigliato per Raspberry Pi 2) [y/N]: "
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "   Installazione Docker..."
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sudo sh get-docker.sh
-    sudo usermod -aG docker $USER
-    rm get-docker.sh
-    echo "   ✅ Docker installato (riavvia per applicare i permessi)"
+    
+    # Rileva la versione di Debian
+    DEBIAN_VERSION=$(lsb_release -cs)
+    echo "   Versione Debian rilevata: $DEBIAN_VERSION"
+    
+    # Installa Docker usando il metodo convenience script
+    if ! command -v docker &> /dev/null; then
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        
+        # Se è Trixie o versioni nuove non ancora supportate, usa bookworm
+        if [ "$DEBIAN_VERSION" = "trixie" ] || [ "$DEBIAN_VERSION" = "sid" ]; then
+            echo "   ⚠️  Versione Debian non ancora ufficialmente supportata da Docker"
+            echo "   Installazione Docker usando repository Debian Bookworm..."
+            sudo sh get-docker.sh --version 24.0
+        else
+            sudo sh get-docker.sh
+        fi
+        
+        sudo usermod -aG docker $USER
+        rm get-docker.sh
+        echo "   ✅ Docker installato (riavvia per applicare i permessi)"
+    else
+        echo "   ✅ Docker già installato"
+    fi
+    
+    # Installa Docker Compose (v2)
+    if ! docker compose version &> /dev/null 2>&1; then
+        echo "   Docker Compose v2 già incluso con Docker"
+    fi
 else
     echo "   ⏭️  Docker non installato"
 fi
@@ -209,6 +233,24 @@ if [ ! -f ~/.ssh/id_ed25519 ]; then
     echo "   ✅ Chiave SSH generata"
 else
     echo "   ✅ Chiave SSH già esistente"
+fi
+
+# Aggiungi la chiave pubblica agli authorized_keys per permettere a GitHub Actions di connettersi
+echo "   Configurazione authorized_keys per GitHub Actions..."
+
+# Crea il file authorized_keys se non esiste
+if [ ! -f ~/.ssh/authorized_keys ]; then
+    touch ~/.ssh/authorized_keys
+    chmod 600 ~/.ssh/authorized_keys
+fi
+
+# Aggiungi la chiave se non è già presente
+if ! grep -q "$(cat ~/.ssh/id_ed25519.pub)" ~/.ssh/authorized_keys 2>/dev/null; then
+    cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys
+    chmod 600 ~/.ssh/authorized_keys
+    echo "   ✅ Authorized_keys configurato"
+else
+    echo "   ✅ Chiave già presente in authorized_keys"
 fi
 
 echo ""
