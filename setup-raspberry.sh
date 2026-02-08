@@ -48,7 +48,9 @@ sudo apt install -y \
     libncursesw5-dev \
     xz-utils \
     tk-dev \
-    liblzma-dev
+    liblzma-dev \
+    libopenblas-dev \
+    gfortran
 
 # --------------------------------------------------
 # 3. Installazione Python 3.11
