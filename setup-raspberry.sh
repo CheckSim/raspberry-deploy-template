@@ -56,9 +56,26 @@ sudo apt install -y \
 echo "🐍 Step 3/8: Installazione Python 3.11..."
 
 if ! command -v python3.11 &> /dev/null; then
-    echo "   Python 3.11 non trovato, installazione dai repository Debian..."
-    sudo apt install -y python3.11 python3.11-venv python3.11-dev
-    echo "   ✅ Python 3.11 installato"
+    # Controlla se è disponibile nei repository
+    if apt-cache show python3.11 &> /dev/null; then
+        echo "   Installazione Python 3.11 dai repository Debian..."
+        sudo apt install -y python3.11 python3.11-venv python3.11-dev
+        echo "   ✅ Python 3.11 installato dai repository"
+    else
+        echo "   Python 3.11 non disponibile nei repository, compilazione da sorgente..."
+        echo "   ⚠️  Questo richiederà 15-25 minuti su Raspberry Pi 2"
+        
+        cd /tmp
+        wget https://www.python.org/ftp/python/3.11.11/Python-3.11.11.tgz
+        tar -xzf Python-3.11.11.tgz
+        cd Python-3.11.11
+        ./configure --enable-optimizations
+        make -j$(nproc)
+        sudo make altinstall
+        cd ~
+        sudo rm -rf /tmp/Python-3.11.11*
+        echo "   ✅ Python 3.11 compilato e installato"
+    fi
 else
     echo "   ✅ Python 3.11 già installato"
 fi
@@ -78,14 +95,16 @@ read -p "🐍 Vuoi rendere Python 3.11 la versione predefinita del sistema? [Y/n
 echo
 if [[ ! $REPLY =~ ^[Nn]$ ]]; then
     echo "   Configurazione Python 3.11 come versione predefinita..."
-    sudo update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1
-    sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
-    sudo update-alternatives --install /usr/local/bin/pip pip /usr/local/bin/pip3.11 1 2>/dev/null || true
-    sudo update-alternatives --install /usr/local/bin/pip3 pip3 /usr/local/bin/pip3.11 1 2>/dev/null || true
+    
+    # Trova il path corretto di Python 3.11
+    PYTHON311_PATH=$(command -v python3.11)
+    
+    sudo update-alternatives --install /usr/bin/python python "$PYTHON311_PATH" 1
+    sudo update-alternatives --install /usr/bin/python3 python3 "$PYTHON311_PATH" 1
     
     # Imposta come default
-    sudo update-alternatives --set python /usr/bin/python3.11 2>/dev/null || true
-    sudo update-alternatives --set python3 /usr/bin/python3.11 2>/dev/null || true
+    sudo update-alternatives --set python "$PYTHON311_PATH" 2>/dev/null || true
+    sudo update-alternatives --set python3 "$PYTHON311_PATH" 2>/dev/null || true
     
     echo "   ✅ Python 3.11 configurato come versione predefinita"
     echo "   Verifica: $(python --version)"
