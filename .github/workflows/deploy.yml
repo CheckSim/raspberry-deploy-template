@@ -28,8 +28,8 @@ jobs:
         username: ${{ secrets.SSH_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: 22
-        timeout: 60m
-        command_timeout: 60m
+        timeout: 120m
+        command_timeout: 120m
         envs: >
           PROJECT_NAME,
           BASE_PATH,
@@ -111,30 +111,69 @@ jobs:
             if [ -n "$PYTHON_VERSION" ]; then
               PYTHON_BIN="python${PYTHON_VERSION}"
             else
-              PYTHON_BIN="python3"
+              # Default: Python 3.11 (migliore compatibilità con piwheels su armhf)
+              PYTHON_BIN="python3.11"
             fi
 
             if ! command -v $PYTHON_BIN >/dev/null 2>&1; then
-              echo "❌ $PYTHON_BIN not found, please install it manually on Raspberry"
-              exit 1
+              echo "❌ $PYTHON_BIN not found"
+              echo "⚠️  Trying fallback to python3..."
+              PYTHON_BIN="python3"
+              
+              if ! command -v $PYTHON_BIN >/dev/null 2>&1; then
+                echo "❌ No Python found, please install Python on Raspberry"
+                exit 1
+              fi
             fi
 
             echo "🐍 Using $PYTHON_BIN ($(command -v $PYTHON_BIN))"
 
-            # Crea virtual environment se non esiste
-            if [ ! -d "venv" ]; then
+            # Verifica se il venv esiste ed è compatibile con la versione Python corrente
+            VENV_NEEDS_REBUILD=false
+            
+            if [ -d "venv" ]; then
+              # Verifica se il venv è compatibile
+              if ! venv/bin/python --version &> /dev/null; then
+                echo "⚠️  Virtual environment incompatibile, sarà ricreato..."
+                VENV_NEEDS_REBUILD=true
+                rm -rf venv
+              fi
+            else
+              VENV_NEEDS_REBUILD=true
+            fi
+
+            # Crea virtual environment se necessario
+            if [ "$VENV_NEEDS_REBUILD" = true ]; then
               echo "📦 Creating virtual environment..."
               $PYTHON_BIN -m venv venv
             fi
 
             # Attiva venv e installa dipendenze
             source venv/bin/activate
+            
+            # Verifica che pip funzioni, altrimenti reinstallalo
+            if ! python -m pip --version &> /dev/null; then
+              echo "⚠️  pip non funzionante, reinstallazione..."
+              curl -sS https://bootstrap.pypa.io/get-pip.py | python
+            fi
 
             export PIP_PREFER_BINARY=1
+            
+            # Aggiungi piwheels per Raspberry Pi (wheel pre-compilati)
+            echo "📦 Configurazione pip per Raspberry Pi..."
+            python -m pip config set global.extra-index-url https://www.piwheels.org/simple
 
             echo "📦 Installing dependencies..."
-            pip install --upgrade pip setuptools wheel
-            pip install -r requirements.txt
+            python -m pip install --upgrade pip setuptools wheel
+            
+            # Usa requirements-rpi.txt se esiste (ottimizzato per Raspberry Pi)
+            # altrimenti usa requirements.txt
+            if [ -f "requirements-rpi.txt" ]; then
+              echo "📦 Using requirements-rpi.txt (Raspberry Pi optimized)"
+              python -m pip install -r requirements-rpi.txt
+            else
+              python -m pip install -r requirements.txt
+            fi
 
             # Trova il file principale Python
             MAIN_FILE=""
@@ -168,10 +207,13 @@ jobs:
           Type=simple
           User=$(whoami)
           WorkingDirectory=$PROJECT_DIR
-          ExecStart=$PROJECT_DIR/venv/bin/python $MAIN_FILE
+          Environment="PATH=$PROJECT_DIR/venv/bin:/usr/local/bin:/usr/bin:/bin"
+          Environment="PYTHONPATH=$PROJECT_DIR"
+          ExecStart=$PROJECT_DIR/venv/bin/python $PROJECT_DIR/$MAIN_FILE
           Restart=always
           RestartSec=10
-          Environment="PATH=$PROJECT_DIR/venv/bin:/usr/local/bin:/usr/bin:/bin"
+          StandardOutput=journal
+          StandardError=journal
 
           [Install]
           WantedBy=multi-user.target
