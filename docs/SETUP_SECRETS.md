@@ -1,38 +1,38 @@
-# Setup Secrets su GitHub
+# Setup Secrets on GitHub
 
-Per configurare i secrets del progetto e abilitare il deploy automatico su Raspberry Pi tramite Tailscale.
+To configure the project secrets and enable automatic deployment on Raspberry Pi via Tailscale.
 
-## 🔐 Secrets obbligatori
+## 🔐 Required Secrets
 
-Vai su **Settings** → **Secrets and variables** → **Actions** del tuo repository e aggiungi:
+Go to **Settings** → **Secrets and variables** → **Actions** in your repository and add:
 
-### `TS_OAUTH_CLIENT_ID` e `TS_OAUTH_SECRET`
+### `TS_OAUTH_CLIENT_ID` and `TS_OAUTH_SECRET`
 
-**OAuth credentials di Tailscale per GitHub Actions**
+**Tailscale OAuth credentials for GitHub Actions**
 
-**Come ottenerle:**
+**How to get them:**
 
-1. Vai su [login.tailscale.com/admin/settings/oauth](https://login.tailscale.com/admin/settings/oauth)
-2. Clicca **"Generate OAuth Client"**
-3. Compila:
+1. Go to [login.tailscale.com/admin/settings/oauth](https://login.tailscale.com/admin/settings/oauth)
+2. Click **"Generate OAuth Client"**
+3. Fill in:
    - **Description**: `GitHub Actions Deploy`
    - **Tags**: `tag:ci`
-4. Clicca **"Generate client"**
-5. Copia **Client ID** → salvalo come `TS_OAUTH_CLIENT_ID`
-6. Copia **Client secret** → salvalo come `TS_OAUTH_SECRET`
+4. Click **"Generate client"**
+5. Copy **Client ID** → save it as `TS_OAUTH_CLIENT_ID`
+6. Copy **Client secret** → save it as `TS_OAUTH_SECRET`
 
-⚠️ **IMPORTANTE**: Il Client secret viene mostrato solo una volta! Salvalo subito.
+⚠️ **IMPORTANT**: The Client secret is shown only once! Save it immediately.
 
-**Configura anche gli ACLs di Tailscale:**
+**Also configure Tailscale ACLs:**
 
-1. Vai su [login.tailscale.com/admin/acls/file](https://login.tailscale.com/admin/acls/file)
-2. Aggiungi in `"tagOwners"`:
+1. Go to [login.tailscale.com/admin/acls/file](https://login.tailscale.com/admin/acls/file)
+2. Add under `"tagOwners"`:
    ```json
    "tagOwners": {
      "tag:ci": ["autogroup:admin"],
    },
    ```
-3. Aggiungi in `"acls"`:
+3. Add under `"acls"`:
    ```json
    "acls": [
      {
@@ -42,17 +42,17 @@ Vai su **Settings** → **Secrets and variables** → **Actions** del tuo reposi
      },
    ],
    ```
-4. Salva
+4. Save
 
 ---
 
 ### `SSH_HOST`
 
-**IP Tailscale del tuo Raspberry Pi**
+**Tailscale IP of your Raspberry Pi**
 
-**Valore**: es. `100.64.1.2`
+**Value**: e.g., `100.64.1.2`
 
-**Come ottenerlo**: Sul Raspberry Pi esegui:
+**How to get it**: On the Raspberry Pi, run:
 ```bash
 tailscale ip -4
 ```
@@ -61,11 +61,11 @@ tailscale ip -4
 
 ### `SSH_USER`
 
-**Username sul Raspberry Pi**
+**Username on the Raspberry Pi**
 
-**Valore**: Solitamente `pi`
+**Value**: Usually `pi`
 
-**Come ottenerlo**: Sul Raspberry Pi esegui:
+**How to get it**: On the Raspberry Pi, run:
 ```bash
 whoami
 ```
@@ -74,51 +74,50 @@ whoami
 
 ### `SSH_PRIVATE_KEY`
 
-**Chiave privata SSH per autenticazione**
+**SSH private key for authentication**
 
-**Valore**: L'intera chiave privata, da `-----BEGIN` a `-----END`
+**Value**: The entire private key, from `-----BEGIN` to `-----END`
 
-**Come ottenerla**: Sul Raspberry Pi esegui:
+**How to get it**: On the Raspberry Pi, run:
 ```bash
 cat ~/.ssh/id_ed25519
 ```
 
-Copia **TUTTO** l'output, incluse le righe BEGIN e END.
+Copy **ALL** the output, including the BEGIN and END lines.
 
 ---
 
 ### `GH_TOKEN_DEPLOY`
 
-**Personal Access Token di GitHub per clonare repository privati**
+**GitHub Personal Access Token to clone private repositories**
 
-**Come crearlo:**
+**How to create it:**
 
-1. Vai su GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
-2. Clicca **"Generate new token (classic)"**
-3. Dai un nome: `Raspberry Pi Deploy`
-4. Seleziona scope: `repo` (Full control of private repositories)
-5. Clicca **"Generate token"**
-6. Copia il token (inizia con `ghp_...`)
+1. Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+2. Click **"Generate new token (classic)"**
+3. Give it a name: `Raspberry Pi Deploy`
+4. Select scope: `repo` (Full control of private repositories)
+5. Click **"Generate token"**
+6. Copy the token (starts with `ghp_...`)
 
-⚠️ Il token si vede solo una volta! Salvalo subito.
+⚠️ The token is shown only once! Save it immediately.
 
 ---
 
 ### `ENV_FILE`
 
-**Contenuto completo del file `.env` del progetto**
+**Complete content of the project's `.env` file**
 
-**Valore**: Tutte le variabili d'ambiente necessarie, una per riga
+**Value**: All required environment variables, one per line
 
-**Esempio per un Bot Telegram:**
+**Example for a Telegram Bot:**
 ```
 TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
 DATABASE_URL=postgresql://user:password@localhost:5432/botdb
 NODE_ENV=production
-PORT=3000
 ```
 
-**Esempio per una WebApp:**
+**Example for a WebApp:**
 ```
 DATABASE_URL=postgresql://user:password@localhost:5432/webapp
 API_KEY=sk-abc123xyz
@@ -129,65 +128,65 @@ PORT=8080
 REDIS_URL=redis://localhost:6379
 ```
 
-**Nota**: Se il tuo progetto non ha bisogno di variabili d'ambiente, puoi non configurare questo secret.
+**Note**: If your project does not need environment variables, you don't need to configure this secret.
 
 ---
 
-## 🔧 Secrets opzionali
+## 🔧 Optional Secrets
 
 ### `PYTHON_VERSION`
 
-**Versione specifica di Python da usare**
+**Specific Python version to use**
 
-**Valore**: es. `3.12`, `3.11`, `3.10`
+**Value**: e.g., `3.12`, `3.11`, `3.10`
 
-**Default**: Se non specificato, usa `python3` (la versione predefinita del sistema)
+**Default**: If not specified, it uses `python3` (the system's default version)
 
-**Quando usarlo**: 
-- Se il tuo progetto richiede una versione specifica di Python
-- Se hai installato Python 3.12 manualmente (come nel nostro setup)
+**When to use it**: 
+- If your project requires a specific version of Python
+- If you have installed Python 3.12 manually (as in our setup)
 
-**Esempio**: Per usare Python 3.12, imposta `PYTHON_VERSION` a `3.12`
+**Example**: To use Python 3.12, set `PYTHON_VERSION` to `3.12`
 
 ---
 
-## 📋 Riepilogo rapido
+## 📋 Quick Summary
 
-| Secret | Obbligatorio | Esempio |
-|--------|--------------|---------|
-| `TS_OAUTH_CLIENT_ID` | ✅ Sì | `k...` |
-| `TS_OAUTH_SECRET` | ✅ Sì | `tskey-client-...` |
-| `SSH_HOST` | ✅ Sì | `100.64.1.2` |
-| `SSH_USER` | ✅ Sì | `pi` |
-| `SSH_PRIVATE_KEY` | ✅ Sì | `-----BEGIN OPENSSH...` |
-| `GH_TOKEN_DEPLOY` | ✅ Sì | `ghp_...` |
-| `ENV_FILE` | ✅ Sì (se servono env vars) | `TELEGRAM_BOT_TOKEN=...` |
+| Secret | Required | Example |
+|--------|----------|---------|
+| `TS_OAUTH_CLIENT_ID` | ✅ Yes | `k...` |
+| `TS_OAUTH_SECRET` | ✅ Yes | `tskey-client-...` |
+| `SSH_HOST` | ✅ Yes | `100.64.1.2` |
+| `SSH_USER` | ✅ Yes | `pi` |
+| `SSH_PRIVATE_KEY` | ✅ Yes | `-----BEGIN OPENSSH...` |
+| `GH_TOKEN_DEPLOY` | ✅ Yes | `ghp_...` |
+| `ENV_FILE` | ✅ Yes (if env vars are needed) | `TELEGRAM_BOT_TOKEN=...` |
 | `PYTHON_VERSION` | ❌ No | `3.12` |
 
 ---
 
-## ✅ Verifica configurazione
+## ✅ Verify Configuration
 
-Dopo aver configurato tutti i secrets:
+After configuring all secrets:
 
-### 1. Controlla che Tailscale sia configurato
+### 1. Check that Tailscale is configured
 
-Sul Raspberry Pi:
+On the Raspberry Pi:
 ```bash
-# Verifica che Tailscale sia attivo
+# Verify that Tailscale is active
 sudo tailscale status
 
-# Verifica l'IP Tailscale
+# Verify Tailscale IP
 tailscale ip -4
 ```
 
-### 2. Verifica gli ACLs di Tailscale
+### 2. Verify Tailscale ACLs
 
-- Vai su [login.tailscale.com/admin/acls/file](https://login.tailscale.com/admin/acls/file)
-- Assicurati che `tag:ci` sia definito in `tagOwners`
-- Assicurati che `tag:ci` abbia accesso alla porta 22
+- Go to [login.tailscale.com/admin/acls/file](https://login.tailscale.com/admin/acls/file)
+- Ensure `tag:ci` is defined in `tagOwners`
+- Ensure `tag:ci` has access to port 22
 
-### 3. Fai un test di deploy
+### 3. Run a deployment test
 
 ```bash
 git add .
@@ -195,121 +194,121 @@ git commit -m "Test deploy"
 git push origin main
 ```
 
-### 4. Monitora il workflow
+### 4. Monitor the workflow
 
-1. Vai su GitHub → repository → **Actions**
-2. Clicca sul workflow "Deploy to Raspberry Pi"
-3. Osserva i log in tempo reale
+1. Go to GitHub → repository → **Actions**
+2. Click on the "Deploy to Raspberry Pi" workflow
+3. Observe real-time logs
 
-Se tutto è configurato correttamente:
-- ✅ Tailscale si connette
-- ✅ SSH funziona
-- ✅ Repository viene clonato/aggiornato
-- ✅ File .env viene creato
-- ✅ Dipendenze vengono installate
-- ✅ Servizio systemd viene creato (se non esiste)
-- ✅ Servizio viene riavviato
-- ✅ Verifica che il servizio sia attivo
+If everything is configured correctly:
+- ✅ Tailscale connects
+- ✅ SSH works
+- ✅ Repository is cloned/updated
+- ✅ `.env` file is created
+- ✅ Dependencies are installed
+- ✅ systemd service is created (if it doesn't exist)
+- ✅ Service is restarted
+- ✅ Verify that the service is active
 
-### 5. Verifica sul Raspberry Pi
+### 5. Verify on the Raspberry Pi
 
 ```bash
-# Connettiti al Pi
-ssh pi@100.x.x.x  # Usa il tuo IP Tailscale
+# Connect to the Pi
+ssh pi@100.x.x.x  # Use your Tailscale IP
 
-# Controlla il progetto
-cd ~/projects/nome-repository
+# Check the project
+cd ~/projects/repository-name
 ls -la
 
-# Verifica che .env sia stato creato
+# Verify that .env has been created
 cat .env
 
-# Per progetti Python, verifica il servizio
-sudo systemctl status nome-repository
+# For Python projects, verify the service
+sudo systemctl status repository-name
 
-# Vedi i log
-sudo journalctl -u nome-repository -f
+# View logs
+sudo journalctl -u repository-name -f
 ```
 
 ---
 
 ## 🐛 Troubleshooting
 
-### ❌ Errore: "Permission denied (publickey)"
+### ❌ Error: "Permission denied (publickey)"
 
-**Causa**: La chiave privata SSH non è corretta o incompleta.
+**Cause**: The SSH private key is incorrect or incomplete.
 
 **Fix**: 
-- Verifica che `SSH_PRIVATE_KEY` includa `-----BEGIN OPENSSH PRIVATE KEY-----` e `-----END OPENSSH PRIVATE KEY-----`
-- Assicurati di non aver aggiunto spazi extra o caratteri
+- Verify that `SSH_PRIVATE_KEY` includes `-----BEGIN OPENSSH PRIVATE KEY-----` and `-----END OPENSSH PRIVATE KEY-----`
+- Ensure you have not added extra spaces or characters
 
 ---
 
-### ❌ Errore: "Connection timeout" o "Unable to connect"
+### ❌ Error: "Connection timeout" or "Unable to connect"
 
-**Causa**: Tailscale non è configurato correttamente o gli ACLs bloccano la connessione.
+**Cause**: Tailscale is not configured correctly or ACLs are blocking the connection.
 
 **Fix**:
-- Verifica che `TS_OAUTH_CLIENT_ID` e `TS_OAUTH_SECRET` siano corretti
-- Controlla che il tag `ci` sia negli ACLs e permetta connessioni alla porta 22
-- Verifica che Tailscale sia attivo sul Pi: `sudo tailscale status`
+- Verify that `TS_OAUTH_CLIENT_ID` and `TS_OAUTH_SECRET` are correct
+- Check that the `ci` tag is in ACLs and allows connections to port 22
+- Verify that Tailscale is active on the Pi: `sudo tailscale status`
 
 ---
 
-### ❌ Errore: "fatal: could not read Username"
+### ❌ Error: "fatal: could not read Username"
 
-**Causa**: Il token `GH_TOKEN_DEPLOY` non è configurato o non è valido.
+**Cause**: The `GH_TOKEN_DEPLOY` token is not configured or is invalid.
 
 **Fix**:
-- Verifica che `GH_TOKEN_DEPLOY` sia impostato nei secrets
-- Assicurati che il token abbia lo scope `repo`
-- Rigenera il token se è scaduto
+- Verify that `GH_TOKEN_DEPLOY` is set in secrets
+- Ensure the token has the `repo` scope
+- Regenerate the token if it has expired
 
 ---
 
-### ❌ Il file .env non viene creato
+### ❌ The .env file is not created
 
-**Causa**: Il secret `ENV_FILE` non è configurato o è vuoto.
+**Cause**: The `ENV_FILE` secret is not configured or is empty.
 
 **Fix**:
-- Controlla che `ENV_FILE` sia impostato nei secrets
-- Verifica che contenga effettivamente le variabili (non sia vuoto)
+- Check that `ENV_FILE` is set in secrets
+- Verify that it actually contains variables (is not empty)
 
 ---
 
-### ❌ Il servizio non parte dopo il deploy
+### ❌ The service does not start after deployment
 
-**Causa**: Errori nell'applicazione o configurazione mancante.
+**Cause**: Errors in the application or missing configuration.
 
 **Fix**:
 ```bash
-# Sul Raspberry Pi, vedi i log
-sudo journalctl -u nome-progetto -n 50
+# On the Raspberry Pi, view logs
+sudo journalctl -u project-name -n 50
 
-# Testa manualmente l'applicazione
-cd ~/projects/nome-progetto
-source venv/bin/activate  # Per Python
-python main.py  # Vedi gli errori
+# Test the application manually
+cd ~/projects/project-name
+source venv/bin/activate  # For Python
+python main.py  # View errors
 ```
 
 ---
 
-## 📝 Checklist finale
+## 📝 Final Checklist
 
-Prima di fare il primo deploy, verifica:
+Before running the first deployment, verify:
 
-- [ ] `TS_OAUTH_CLIENT_ID` configurato
-- [ ] `TS_OAUTH_SECRET` configurato
-- [ ] Tag `ci` configurato negli ACLs di Tailscale
-- [ ] `SSH_HOST` configurato (IP Tailscale)
-- [ ] `SSH_USER` configurato
-- [ ] `SSH_PRIVATE_KEY` configurato (chiave completa)
-- [ ] Chiave pubblica SSH aggiunta a GitHub (Settings → SSH keys)
-- [ ] `GH_TOKEN_DEPLOY` configurato con scope `repo`
-- [ ] `ENV_FILE` configurato con tutte le variabili necessarie
-- [ ] (Opzionale) `PYTHON_VERSION` configurato se usi Python 3.12
-- [ ] Tailscale attivo sul Raspberry Pi
-- [ ] Directory `~/projects` creata sul Pi
-- [ ] Sudo configurato senza password sul Pi
+- [ ] `TS_OAUTH_CLIENT_ID` configured
+- [ ] `TS_OAUTH_SECRET` configured
+- [ ] Tag `ci` configured in Tailscale ACLs
+- [ ] `SSH_HOST` configured (Tailscale IP)
+- [ ] `SSH_USER` configured
+- [ ] `SSH_PRIVATE_KEY` configured (complete key)
+- [ ] Public SSH key added to GitHub (Settings → SSH keys)
+- [ ] `GH_TOKEN_DEPLOY` configured with `repo` scope
+- [ ] `ENV_FILE` configured with all necessary variables
+- [ ] (Optional) `PYTHON_VERSION` configured if using Python 3.12
+- [ ] Tailscale active on the Raspberry Pi
+- [ ] `~/projects` directory created on the Pi
+- [ ] Passwordless sudo configured on the Pi
 
-Tutto pronto? Fai push e guarda la magia! 🚀
+All set? Push and watch the magic! 🚀

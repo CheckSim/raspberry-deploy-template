@@ -1,27 +1,27 @@
 # 🚀 Raspberry Pi Deploy Template
 
-Template per deploy automatico su Raspberry Pi tramite GitHub Actions con Tailscale.
+Template for automatic deployment on Raspberry Pi via GitHub Actions with Tailscale.
 
 ![Deploy](https://github.com/CheckSim/raspberry-deploy-template/workflows/Deploy%20to%20Raspberry%20Pi/badge.svg)
 
-## 📋 Cosa include questo template
+## 📋 What this template includes
 
-- ✅ **Workflow GitHub Actions** per deploy automatico via Tailscale
-- ✅ **Setup automatico servizi systemd** per progetti Python
-- ✅ **Supporto multi-stack**: Node.js (PM2), Python (systemd), Docker Compose
-- ✅ **Gestione automatica secrets** tramite file `.env`
-- ✅ **Verifica post-deploy** con controllo stato servizi
-- ✅ **Script di setup automatico** per Raspberry Pi
-- ✅ **Ottimizzato per Raspberry Pi 2/4/5**
-- ✅ **Documentazione completa**
+- ✅ **GitHub Actions Workflow** for automatic deployment via Tailscale
+- ✅ **Automatic setup of systemd services** for Python projects
+- ✅ **Multi-stack support**: Node.js (PM2), Python (systemd), Docker Compose
+- ✅ **Automatic secrets management** via `.env` file
+- ✅ **Post-deploy verification** with service status check
+- ✅ **Automatic setup script** for Raspberry Pi
+- ✅ **Optimized for Raspberry Pi 2/4/5**
+- ✅ **Complete documentation**
 
 ## 🎯 Quick Start
 
-### 1. Configura il Raspberry Pi
+### 1. Configure the Raspberry Pi
 
-**Opzione A: Setup Automatico (CONSIGLIATO)**
+**Option A: Automatic Setup (RECOMMENDED)**
 
-Sul Raspberry Pi, scarica ed esegui lo script di setup:
+On the Raspberry Pi, download and run the setup script:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TUO_USERNAME/raspberry-deploy-template/main/setup-raspberry.sh -o setup-raspberry.sh
@@ -29,35 +29,35 @@ chmod +x setup-raspberry.sh
 ./setup-raspberry.sh
 ```
 
-Lo script installerà tutto automaticamente: Python 3.12, Node.js, PM2, Tailscale, chiavi SSH, configurazione sudo.
+The script will install everything automatically: Python 3.12, Node.js, PM2, Tailscale, SSH keys, sudo configuration.
 
-**Opzione B: Setup Manuale**
+**Option B: Manual Setup**
 
-Segui la [guida completa](docs/SETUP_SECRETS.md) per configurare manualmente ogni componente.
+Follow the [complete guide](docs/SETUP_SECRETS.md) to manually configure each component.
 
-### 2. Usa questo template
+### 2. Use this template
 
-Clicca su **"Use this template"** in alto per creare un nuovo repository dal template.
+Click on **"Use this template"** at the top to create a new repository from the template.
 
-### 3. Configura i secrets
+### 3. Configure secrets
 
-Vai su **Settings** → **Secrets and variables** → **Actions** e configura:
+Go to **Settings** → **Secrets and variables** → **Actions** and configure:
 
-**Secrets obbligatori:**
-- `TS_OAUTH_CLIENT_ID` - OAuth Client ID di Tailscale
-- `TS_OAUTH_SECRET` - OAuth Client Secret di Tailscale
-- `SSH_HOST` - IP Tailscale del Pi (es. `100.x.x.x`, ottienilo con `tailscale ip -4`)
-- `SSH_USER` - Username (es. `pi`)
-- `SSH_PRIVATE_KEY` - Chiave privata SSH (da `cat ~/.ssh/id_ed25519`)
-- `GH_TOKEN_DEPLOY` - Personal Access Token GitHub con scope `repo`
-- `ENV_FILE` - Contenuto del file `.env` (vedi `.env.example`)
+**Required secrets:**
+- `TS_OAUTH_CLIENT_ID` - Tailscale OAuth Client ID
+- `TS_OAUTH_SECRET` - Tailscale OAuth Client Secret
+- `SSH_HOST` - Tailscale IP of the Pi (e.g., `100.x.x.x`, get it with `tailscale ip -4`)
+- `SSH_USER` - Username (e.g., `pi`)
+- `SSH_PRIVATE_KEY` - SSH private key (from `cat ~/.ssh/id_ed25519`)
+- `GH_TOKEN_DEPLOY` - GitHub Personal Access Token with `repo` scope
+- `ENV_FILE` - Content of the `.env` file (see `.env.example`)
 
-**Secrets opzionali:**
-- `PYTHON_VERSION` - Versione Python specifica (es. `3.12`)
+**Optional secrets:**
+- `PYTHON_VERSION` - Specific Python version (e.g., `3.12`)
 
-📖 [Guida dettagliata configurazione secrets](docs/SETUP_SECRETS.md)
+📖 [Detailed secrets configuration guide](docs/SETUP_SECRETS.md)
 
-### 4. Push e deploy!
+### 4. Push and deploy!
 
 ```bash
 git add .
@@ -65,123 +65,123 @@ git commit -m "Initial commit"
 git push origin main
 ```
 
-Il deploy partirà automaticamente! 🎉
+The deployment will start automatically! 🎉
 
 ---
 
-## 📚 Documentazione completa
+## 📚 Complete documentation
 
-Per la guida completa su come configurare il Raspberry Pi e tutti i dettagli:
+For the complete guide on how to configure the Raspberry Pi and all details:
 
-👉 **Scorri in basso in questo README per la guida completa**
+👉 **Scroll down in this README for the complete guide**
 
 ---
 
-## 🎯 Come usare questo template per nuovi progetti
+## 🎯 How to use this template for new projects
 
-### Metodo 1: Usa il pulsante "Use this template" (Consigliato)
+### Method 1: Use the "Use this template" button (Recommended)
 
-1. Vai sulla pagina del repository template su GitHub
-2. Clicca il pulsante verde **"Use this template"** in alto a destra
-3. Seleziona **"Create a new repository"**
-4. Compila:
-   - **Repository name**: nome del tuo nuovo progetto
-   - **Description**: descrizione del progetto
-   - **Public** o **Private**: scegli la visibilità
-5. Clicca **"Create repository"**
-6. Clona il nuovo repository:
+1. Go to the template repository page on GitHub
+2. Click the green **"Use this template"** button in the top right
+3. Select **"Create a new repository"**
+4. Fill in:
+   - **Repository name**: your new project's name
+   - **Description**: project description
+   - **Public** or **Private**: choose visibility
+5. Click **"Create repository"**
+6. Clone the new repository:
    ```bash
    git clone git@github.com:tuo-username/nuovo-progetto.git
    cd nuovo-progetto
    ```
-7. Configura i secrets (vedi [docs/SETUP_SECRETS.md](docs/SETUP_SECRETS.md))
-8. Sviluppa il tuo progetto!
+7. Configure secrets (see [docs/SETUP_SECRETS.md](docs/SETUP_SECRETS.md))
+8. Develop your project!
 
-### Metodo 2: Clona e riconfigura manualmente
+### Method 2: Clone and reconfigure manually
 
 ```bash
-# Clona il template
+# Clone the template
 git clone git@github.com:tuo-username/raspberry-deploy-template.git nuovo-progetto
 cd nuovo-progetto
 
-# Rimuovi il remote originale
+# Remove original remote
 git remote remove origin
 
-# Crea un nuovo repository su GitHub, poi:
+# Create a new repository on GitHub, then:
 git remote add origin git@github.com:tuo-username/nuovo-progetto.git
 git push -u origin main
 ```
 
-### Cosa fare dopo aver creato il progetto dal template
+### What to do after creating the project from the template
 
-1. ✅ **Configura i secrets GitHub** (vedi [docs/SETUP_SECRETS.md](docs/SETUP_SECRETS.md))
-2. ✅ **Copia `.env.example` in `.env`** localmente e configura le tue variabili
-3. ✅ **Aggiungi il contenuto di `.env` nel secret `ENV_FILE`** su GitHub
-4. ✅ **Sviluppa il tuo progetto** (Node.js, Python, Docker, ecc.)
-5. ✅ **Fai commit e push** - il deploy partirà automaticamente!
-
----
-
-## 🔥 Funzionalità avanzate
-
-### Deploy automatico di progetti Python
-
-Il workflow:
-- ✅ Rileva automaticamente progetti Python (via `requirements.txt`)
-- ✅ Cerca file entry point: `main.py`, `bot.py`, `app.py`, `run.py`
-- ✅ **Crea automaticamente il servizio systemd** se non esiste
-- ✅ Configura auto-restart in caso di crash
-- ✅ Verifica che il servizio sia attivo dopo il deploy
-- ✅ Mostra i log se ci sono errori
-
-**Nessuna configurazione manuale necessaria!**
-
-### Deploy automatico di progetti Node.js
-
-Il workflow:
-- ✅ Rileva automaticamente progetti Node.js (via `package.json`)
-- ✅ Installa dipendenze con `npm install`
-- ✅ Esegue build se presente script `build`
-- ✅ Gestisce PM2 automaticamente (restart o start)
-
-### Supporto Docker Compose
-
-Il workflow:
-- ✅ Rileva automaticamente `docker-compose.yml`
-- ✅ Rebuilda e riavvia i container
-- ⚠️ Consigliato solo per Raspberry Pi 4/5
+1. ✅ **Configure GitHub secrets** (see [docs/SETUP_SECRETS.md](docs/SETUP_SECRETS.md))
+2. ✅ **Copy `.env.example` to `.env`** locally and configure your variables
+3. ✅ **Add the content of `.env` to the `ENV_FILE` secret** on GitHub
+4. ✅ **Develop your project** (Node.js, Python, Docker, etc.)
+5. ✅ **Commit and push** - deployment will start automatically!
 
 ---
 
-## 🛠️ File e struttura
+## 🔥 Advanced features
+
+### Automatic deployment of Python projects
+
+The workflow:
+- ✅ Automatically detects Python projects (via `requirements.txt`)
+- ✅ Looks for entry point files: `main.py`, `bot.py`, `app.py`, `run.py`
+- ✅ **Automatically creates the systemd service** if it doesn't exist
+- ✅ Configures auto-restart in case of crashes
+- ✅ Verifies that the service is active after deployment
+- ✅ Shows logs if there are errors
+
+**No manual configuration required!**
+
+### Automatic deployment of Node.js projects
+
+The workflow:
+- ✅ Automatically detects Node.js projects (via `package.json`)
+- ✅ Installs dependencies with `npm install`
+- ✅ Runs build if a `build` script is present
+- ✅ Manages PM2 automatically (restart or start)
+
+### Docker Compose Support
+
+The workflow:
+- ✅ Automatically detects `docker-compose.yml`
+- ✅ Rebuilds and restarts containers
+- ⚠️ Recommended only for Raspberry Pi 4/5
+
+---
+
+## 🛠️ Files and structure
 
 ```
 raspberry-deploy-template/
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml          # Workflow GitHub Actions
+│       └── deploy.yml          # GitHub Actions workflow
 ├── docs/
-│   └── SETUP_SECRETS.md        # Guida configurazione secrets
-├── setup-raspberry.sh          # Script setup automatico Raspberry Pi
-├── .env.example                # Template variabili d'ambiente
-├── .gitignore                  # File da ignorare
-└── README.md                   # Questa guida
+│   └── SETUP_SECRETS.md        # Secrets configuration guide
+├── setup-raspberry.sh          # Raspberry Pi automatic setup script
+├── .env.example                # Environment variables template
+├── .gitignore                  # Files to ignore
+└── README.md                   # This guide
 ```
 
 ---
 
-## 🔒 Sicurezza
+## 🔒 Security
 
-- ✅ **Tailscale**: Connessione sicura senza esporre SSH pubblicamente
-- ✅ **Nessun port forwarding**: Funziona anche dietro CG-NAT
-- ✅ **Secrets GitHub**: Variabili sensibili mai committate nel repository
-- ✅ **Chiavi SSH separate**: Una per GitHub, una per GitHub Actions
+- ✅ **Tailscale**: Secure connection without exposing SSH publicly
+- ✅ **No port forwarding**: Works even behind CG-NAT
+- ✅ **GitHub Secrets**: Sensitive variables never committed to the repository
+- ✅ **Separate SSH keys**: One for GitHub, one for GitHub Actions
 
 ---
 
-## 🌟 Esempi di utilizzo
+## 🌟 Usage examples
 
-### Bot Telegram
+### Telegram Bot
 
 ```python
 # main.py
@@ -195,12 +195,12 @@ app = Application.builder().token(TOKEN).build()
 app.run_polling()
 ```
 
-Secret `ENV_FILE`:
+`ENV_FILE` Secret:
 ```
 TELEGRAM_BOT_TOKEN=123456789:ABCdef...
 ```
 
-### API REST con Flask
+### REST API with Flask
 
 ```python
 # app.py
@@ -217,14 +217,14 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
 ```
 
-Secret `ENV_FILE`:
+`ENV_FILE` Secret:
 ```
 PORT=5000
 DATABASE_URL=postgresql://...
 SECRET_KEY=your-secret-key
 ```
 
-### Bot Discord con Node.js
+### Discord Bot with Node.js
 
 ```javascript
 // index.js
@@ -238,37 +238,37 @@ const client = new Client({
 client.login(process.env.DISCORD_TOKEN);
 ```
 
-Secret `ENV_FILE`:
+`ENV_FILE` Secret:
 ```
 DISCORD_TOKEN=your-discord-token
 ```
 
 ---
 
-## 📊 Monitoraggio
+## 📊 Monitoring
 
-### Verifica stato servizi
+### Check service status
 
 ```bash
-# Per Python (systemd)
+# For Python (systemd)
 sudo systemctl status nome-progetto
 sudo journalctl -u nome-progetto -f
 
-# Per Node.js (PM2)
+# For Node.js (PM2)
 pm2 list
 pm2 logs nome-progetto
 
-# Per Docker
+# For Docker
 docker compose ps
 docker compose logs -f
 ```
 
 ---
 
-## 🆘 Supporto
+## 🆘 Support
 
-Problemi? Controlla:
-- 📖 [Guida completa](README.md#guida-deploy-automatico-da-github-a-raspberry-pi)
+Problems? Check:
+- 📖 [Complete guide](README.md#guide-automatic-deployment-from-github-to-raspberry-pi)
 - 🔐 [Setup secrets](docs/SETUP_SECRETS.md)
 - 🐛 [Troubleshooting](README.md#troubleshooting)
 
@@ -280,22 +280,22 @@ MIT
 
 ---
 
-# Guida: Deploy Automatico da GitHub a Raspberry Pi
+# Guide: Automatic Deployment from GitHub to Raspberry Pi
 
-Questa guida ti aiuterà a configurare un sistema di deploy automatico che fa il push del codice da GitHub al tuo Raspberry Pi ogni volta che fai un commit.
+This guide will help you set up an automatic deployment system that pushes code from GitHub to your Raspberry Pi every time you commit.
 
-## 📋 Prerequisiti
+## 📋 Prerequisites
 
-- Un Raspberry Pi con Raspberry Pi OS installato
-- Accesso SSH al Raspberry Pi
-- Un account GitHub
-- Connessione internet sul Raspberry Pi
+- A Raspberry Pi with Raspberry Pi OS installed
+- SSH access to the Raspberry Pi
+- A GitHub account
+- Internet connection on the Raspberry Pi
 
-## ⚠️ Nota per Raspberry Pi 2
+## ⚠️ Note for Raspberry Pi 2
 
-Se hai un **Raspberry Pi 2 v1.1** (1GB RAM, 32-bit):
-- Usa **Raspberry Pi OS Lite (32-bit, Legacy)**
-- Evita Docker quando possibile (molto pesante su 1GB RAM)
-- **Preferisci PM2 per Node.js e systemd per Python**
-- Limita a 1-2 progetti contemporaneamente
-- Aggiungi swap (v
+If you have a **Raspberry Pi 2 v1.1** (1GB RAM, 32-bit):
+- Use **Raspberry Pi OS Lite (32-bit, Legacy)**
+- Avoid Docker when possible (very heavy on 1GB RAM)
+- **Prefer PM2 for Node.js and systemd for Python**
+- Limit to 1-2 projects concurrently
+- Add swap (the setup script does it automatically)
